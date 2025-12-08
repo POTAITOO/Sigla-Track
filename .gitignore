@@ -41,3 +41,8 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Firebase config files with sensitive data
+google-services.json
+GoogleService-Info.plist
+firebaseConfig.js
