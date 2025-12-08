@@ -3,12 +3,38 @@ A habit and event tracking app designed to gamify productivity, enhance mental w
 
 ---
 
+## 🚀 Quick Start for Team Members
+
+### 1. Clone & Install
+```bash
+git clone https://github.com/POTAITOO/Sigla-Track.git
+cd Sigla-Track
+npm install
+```
+
+### 2. Firebase Setup (REQUIRED)
+**⚠️ You need Firebase config files to run the app:**
+
+Contact the project owner to get:
+- `google-services.json`
+- `firebaseConfig.js`
+
+Place both files in the project root, then see [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) for details.
+
+### 3. Run the App
+```bash
+npx expo start
+```
+Press `a` for Android, `i` for iOS, or scan QR with Expo Go app.
+
+---
+
 ## 🚀 Tech Stack
 
-- **Frontend:** React Native (Expo)
-- **Backend:** Node.js (Express)
-- **Database & Auth:** Firebase (Firestore, Auth, Cloud Functions)
-- **Calendar Integration:** Google Calendar, Outlook Sync
+- **Frontend:** React Native (Expo) with TypeScript
+- **Backend:** Firebase (Firestore, Auth, Cloud Functions)
+- **Navigation:** Expo Router
+- **Database:** Firestore (with offline support)
 
 ---
 
