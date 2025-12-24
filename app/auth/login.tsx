@@ -1,5 +1,5 @@
 import { Stack, useRouter } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import {
   Image,
@@ -12,30 +12,19 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { auth } from "../firebaseConfig.js";
+import { auth } from "../../firebaseConfig.js";
+import { getFirebaseErrorMessage } from "../../services/firebaseErrorHandler.js";
 
-export default function Register() {
-  const [name, setName] = useState("");
+export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleRegister = async () => {
-    if (!name || !email || !password || !confirmPassword) {
+  const handleLogin = async () => {
+    if (!email || !password) {
       setError("Please fill in all fields");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
       return;
     }
 
@@ -43,10 +32,12 @@ export default function Register() {
     setError("");
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email, password);
       router.replace("/");
     } catch (error: any) {
-      setError(error.message || "Registration failed");
+      // Get user-friendly error message from Firebase error code
+      const errorCode = error.code || error.message;
+      setError(getFirebaseErrorMessage(errorCode));
     } finally {
       setLoading(false);
     }
@@ -62,12 +53,12 @@ export default function Register() {
         {/* Gradient Background Circles */}
         <View style={styles.gradientCircle1} />
         <View style={styles.gradientCircle2} />
-
+        
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity
+          <TouchableOpacity 
             style={styles.backButton}
             onPress={() => router.back()}
           >
@@ -84,24 +75,11 @@ export default function Register() {
           </View>
 
           <View style={styles.header}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Start your journey today</Text>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Sign in to continue your journey</Text>
           </View>
 
           <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your name"
-                placeholderTextColor="#999"
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                autoComplete="name"
-              />
-            </View>
-
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Email</Text>
               <TextInput
@@ -120,48 +98,38 @@ export default function Register() {
               <Text style={styles.label}>Password</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Create a password"
+                placeholder="Enter your password"
                 placeholderTextColor="#999"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
-                autoComplete="password-new"
+                autoComplete="password"
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Re-enter your password"
-                placeholderTextColor="#999"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                autoComplete="password-new"
-              />
-            </View>
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
-              style={[
-                styles.registerButton,
-                loading && styles.registerButtonDisabled,
-              ]}
-              onPress={handleRegister}
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+              onPress={handleLogin}
               disabled={loading}
+               accessibilityLabel="Sign in button"
+               accessibilityHint={loading ? "Signing in..." : undefined}
             >
-              <Text style={styles.registerButtonText}>
-                {loading ? "Creating account..." : "Sign Up"}
+              <Text style={styles.loginButtonText}>
+                {loading ? "Signing in..." : "Sign In"}
               </Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => router.push("/login")}>
-              <Text style={styles.loginLink}>Sign In</Text>
+            <Text style={styles.footerText}>Don&apos;t have an account? </Text>
+            <TouchableOpacity onPress={() => router.push("/register")}>
+              <Text style={styles.signupLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -275,13 +243,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#0F172A",
   },
+  forgotPassword: {
+    alignSelf: "flex-end",
+    marginBottom: 24,
+  },
+  forgotPasswordText: {
+    color: "#8B5CF6",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   errorText: {
     color: "#EF4444",
     fontSize: 14,
     marginBottom: 16,
     textAlign: "center",
   },
-  registerButton: {
+  loginButton: {
     backgroundColor: "#8B5CF6",
     borderRadius: 12,
     padding: 16,
@@ -293,10 +270,10 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  registerButtonDisabled: {
+  loginButtonDisabled: {
     opacity: 0.6,
   },
-  registerButtonText: {
+  loginButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
@@ -310,7 +287,7 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontSize: 14,
   },
-  loginLink: {
+  signupLink: {
     color: "#8B5CF6",
     fontSize: 14,
     fontWeight: "600",
