@@ -1,14 +1,14 @@
 import { Stack, useRouter } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { auth } from "../firebaseConfig.js";
 
 export default function Index() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(50))[0];
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
   const router = useRouter();
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function Index() {
         }),
       ]).start();
     }
-  }, [loading, user]);
+  }, [loading, user, fadeAnim, slideAnim]);
 
   const handleLogout = async () => {
     try {
