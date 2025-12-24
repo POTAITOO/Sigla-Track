@@ -1,14 +1,56 @@
 import { Stack, useRouter } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { useEffect, useState } from "react";
-import { Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  Dimensions,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { auth } from "../firebaseConfig.js";
+
+const { width } = Dimensions.get("window");
+
+const onboardingData = [
+  {
+    id: 1,
+    title: "Welcome to",
+    subtitle: "SiglaTrack",
+    description:
+      "Your personal goal tracking companion that helps you stay organized, focused, and motivated to achieve your dreams",
+    icon: "🎯",
+  },
+  {
+    id: 2,
+    title: "Powerful\nFeatures",
+    features: [
+      { icon: "🎯", title: "Goals", desc: "Set and achieve targets" },
+      { icon: "🔥", title: "Streaks", desc: "Build consistency" },
+      { icon: "📋", title: "Track", desc: "Monitor daily progress" },
+      { icon: "📈", title: "Analytics", desc: "Visualize your journey" },
+    ],
+  },
+  {
+    id: 3,
+    title: "Get Ready to\nAchieve More",
+    tips: [
+      "Set clear and achievable goals",
+      "Track your progress daily",
+      "Stay consistent with reminders",
+      "Celebrate your milestones",
+    ],
+    trust: ["Free Forever", "No Ads", "Private & Secure"],
+  },
+];
 
 export default function Index() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(50))[0];
+  const [currentPage, setCurrentPage] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -20,28 +62,109 @@ export default function Index() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [loading, user]);
-
   const handleLogout = async () => {
     try {
       await signOut(auth);
     } catch (error) {
       console.error("Logout error:", error);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentPage < onboardingData.length - 1) {
+      const nextPage = currentPage + 1;
+      flatListRef.current?.scrollToIndex({ index: nextPage, animated: true });
+      setCurrentPage(nextPage);
+    } else {
+      router.push("/login");
+    }
+  };
+
+  const handleSkip = () => {
+    router.push("/login");
+  };
+
+  const handleBack = () => {
+    if (currentPage > 0) {
+      const prevPage = currentPage - 1;
+      flatListRef.current?.scrollToIndex({ index: prevPage, animated: true });
+      setCurrentPage(prevPage);
+    }
+  };
+
+  const viewabilityConfig = useRef({
+    viewAreaCoveragePercentThreshold: 50,
+  }).current;
+
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      setCurrentPage(viewableItems[0].index || 0);
+    }
+  }).current;
+
+  const renderPage = ({ item }: any) => {
+    if (item.id === 1) {
+      return (
+        <View style={styles.page}>
+          <View style={styles.pageContent}>
+            <Image
+              source={require("../assets/images/logo.png")}
+              style={styles.welcomeLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.pageTitle}>{item.title}</Text>
+            <Text style={styles.pageTitleBold}>{item.subtitle}</Text>
+            <Text style={styles.pageDescription}>{item.description}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    if (item.id === 2) {
+      return (
+        <View style={styles.page}>
+          <View style={styles.pageContent}>
+            <Text style={styles.pageTitle}>{item.title}</Text>
+            <View style={styles.featuresGrid}>
+              {item.features.map((feature: any, index: number) => (
+                <View key={index} style={styles.featureCardMini}>
+                  <Text style={styles.featureIconMini}>{feature.icon}</Text>
+                  <Text style={styles.featureTitleMini}>{feature.title}</Text>
+                  <Text style={styles.featureDescMini}>{feature.desc}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    if (item.id === 3) {
+      return (
+        <View style={styles.page}>
+          <View style={styles.pageContent}>
+            <Text style={styles.pageTitle}>{item.title}</Text>
+            <View style={styles.tipsSection}>
+              {item.tips.map((tip: string, index: number) => (
+                <View key={index} style={styles.tipItem}>
+                  <View style={styles.tipBullet}>
+                    <Text style={styles.tipBulletText}>✓</Text>
+                  </View>
+                  <Text style={styles.tipText}>{tip}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.trustBadges}>
+              {item.trust.map((trust: string, index: number) => (
+                <View key={index} style={styles.trustBadge}>
+                  <Text style={styles.trustIcon}>✓</Text>
+                  <Text style={styles.trustText}>{trust}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      );
     }
   };
 
@@ -53,14 +176,14 @@ export default function Index() {
     );
   }
 
-  return (
-    <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={user ? styles.container : styles.landingContainerWrapper}>
-        {user ? (
+  if (user) {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.loggedInContainer}>
           <View style={styles.userContainer}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Sigla-Track</Text>
+            <View style={styles.header2}>
+              <Text style={styles.title}>SiglaTrack</Text>
               <Text style={styles.subtitle}>Welcome back!</Text>
             </View>
 
@@ -77,133 +200,77 @@ export default function Index() {
               <Text style={styles.logoutButtonText}>Logout</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          <ScrollView style={styles.landingContainer} showsVerticalScrollIndicator={false}>
-            {/* Gradient Background Circles */}
-            <View style={styles.gradientCircle1} />
-            <View style={styles.gradientCircle2} />
-            
-            {/* Header */}
-            <View style={styles.landingHeader}>
-              <View style={styles.brandContainer}>
-                <Image
-                  source={require("../assets/images/logo.png")}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-                <Text style={styles.brandText}>Sigla-Track</Text>
-              </View>
-            </View>
+        </View>
+      </>
+    );
+  }
 
-            <Animated.View 
-              style={[
-                styles.contentWrapper,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }]
-                }
-              ]}
-            >
-              {/* Main Hero */}
-              <View style={styles.heroSection}>
-                <Text style={styles.heroTitle}>
-                  Your Goals,{"\n"}
-                  <Text style={styles.heroTitleHighlight}>Simplified</Text>
-                </Text>
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.container}>
+        {/* Gradient Background Circles */}
+        <View style={styles.gradientCircle1} />
+        <View style={styles.gradientCircle2} />
 
-                <Text style={styles.heroDescription}>
-                  Transform the way you achieve your goals with intelligent tracking and beautiful analytics
-                </Text>
-              </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerSpacer} />
+          <TouchableOpacity 
+            onPress={handleBack}
+            disabled={currentPage === 0}
+            style={currentPage === 0 && styles.backButtonDisabled}
+          >
+            <Text style={[
+              styles.backText,
+              currentPage === 0 && styles.backTextDisabled
+            ]}>
+              Back
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-              {/* Features Grid */}
-              <View style={styles.featuresGrid}>
-                <View style={styles.featureCardLarge}>
-                  <View style={styles.featureIconLarge}>
-                    <Text style={styles.featureIconText}>🎯</Text>
-                  </View>
-                  <Text style={styles.featureCardTitle}>Smart Goals</Text>
-                  <Text style={styles.featureCardDescription}>
-                    Set, organize, and achieve your goals with AI-powered insights
-                  </Text>
-                </View>
+        {/* Pages */}
+        <FlatList
+          ref={flatListRef}
+          data={onboardingData}
+          renderItem={renderPage}
+          keyExtractor={(item) => item.id.toString()}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+        />
 
-                <View style={styles.featureRow}>
-                  <View style={styles.featureCardSmall}>
-                    <Text style={styles.featureIconSmall}>🏆</Text>
-                    <Text style={styles.featureSmallTitle}>Leaderboard</Text>
-                  </View>
-                  <View style={styles.featureCardSmall}>
-                    <Text style={styles.featureIconSmall}>🔥</Text>
-                    <Text style={styles.featureSmallTitle}>Streaks</Text>
-                  </View>
-                </View>
+        {/* Footer */}
+        <View style={styles.footer}>
+          {/* Pagination Dots */}
+          <View style={styles.pagination}>
+            {onboardingData.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  currentPage === index && styles.dotActive,
+                ]}
+              />
+            ))}
+          </View>
 
-                <View style={styles.featureRow}>
-                  <View style={styles.featureCardInfo}>
-                    <Text style={styles.featureInfoIcon}>✅</Text>
-                    <View style={styles.featureInfoContent}>
-                      <Text style={styles.featureInfoTitle}>Track</Text>
-                      <Text style={styles.featureInfoDescription}>
-                        Monitor your daily progress
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.featureCardInfo}>
-                    <Text style={styles.featureInfoIcon}>📈</Text>
-                    <View style={styles.featureInfoContent}>
-                      <Text style={styles.featureInfoTitle}>Analytics</Text>
-                      <Text style={styles.featureInfoDescription}>
-                        Visualize your journey
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Trust Badges */}
-              <View style={styles.trustSection}>
-                <View style={styles.trustBadge}>
-                  <Text style={styles.trustIcon}>✓</Text>
-                  <Text style={styles.trustText}>Free Forever</Text>
-                </View>
-                <View style={styles.trustBadge}>
-                  <Text style={styles.trustIcon}>✓</Text>
-                  <Text style={styles.trustText}>No Ads</Text>
-                </View>
-                <View style={styles.trustBadge}>
-                  <Text style={styles.trustIcon}>✓</Text>
-                  <Text style={styles.trustText}>Private & Secure</Text>
-                </View>
-              </View>
-
-              {/* CTA */}
-              <View style={styles.ctaSection}>
-                <TouchableOpacity
-                  style={styles.ctaButtonPrimary}
-                  onPress={() => router.push("/register")}
-                  activeOpacity={0.9}
-                >
-                  <Text style={styles.ctaButtonPrimaryText}>Start Your Journey</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.ctaButtonSecondary}
-                  onPress={() => router.push("/login")}
-                  activeOpacity={0.9}
-                >
-                  <Text style={styles.ctaButtonSecondaryText}>I have an account</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>
-                  Join thousands achieving their goals daily
-                </Text>
-              </View>
-            </Animated.View>
-          </ScrollView>
-        )}
+          {/* Next Button */}
+          <TouchableOpacity
+            style={styles.nextButton}
+            onPress={handleNext}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.nextButtonText}>
+              {currentPage === onboardingData.length - 1
+                ? "Get Started"
+                : "Next"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </>
   );
@@ -212,64 +279,277 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FAFAFA",
+  },
+  gradientCircle1: {
+    position: "absolute",
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: "#E9D5FF",
+    opacity: 0.3,
+    top: -100,
+    right: -100,
+    zIndex: 0,
+  },
+  gradientCircle2: {
+    position: "absolute",
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: "#D4FC79",
+    opacity: 0.2,
+    bottom: 100,
+    left: -80,
+    zIndex: 0,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 70,
+    paddingBottom: 20,
+    zIndex: 1,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  backButtonContainer: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  backButtonDisabled: {
+    opacity: 0.3,
+  },
+  backText: {
+    fontSize: 16,
+    color: "#8B5CF6",
+    fontWeight: "600",
+  },
+  backTextDisabled: {
+    color: "#94A3B8",
+  },
+  skipText: {
+    fontSize: 16,
+    color: "#8B5CF6",
+    fontWeight: "600",
+  },
+  page: {
+    width: width,
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+  pageContent: {
+    flex: 1,
     justifyContent: "center",
-    padding: 24,
+    alignItems: "center",
+  },
+  iconCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "#F5F3FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 32,
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  mainIcon: {
+    fontSize: 56,
+  },
+  pageTitle: {
+    fontSize: 36,
+    fontWeight: "800",
+    color: "#0F172A",
+    textAlign: "center",
+    marginBottom: 8,
+    lineHeight: 42,
+  },
+  pageTitleBold: {
+    fontSize: 40,
+    fontWeight: "900",
+    color: "#8B5CF6",
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 48,
+    letterSpacing: -1,
+  },
+  pageDescription: {
+    fontSize: 16,
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 24,
+    paddingHorizontal: 20,
+  },
+  featuresGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+    marginTop: 32,
+    justifyContent: "center",
+  },
+  featureCardMini: {
+    width: (width - 72) / 2,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  featureIconMini: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  featureTitleMini: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginBottom: 4,
+  },
+  featureDescMini: {
+    fontSize: 12,
+    color: "#64748B",
+    textAlign: "center",
+  },
+  tipsSection: {
+    marginTop: 32,
+    width: "100%",
+  },
+  tipItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  tipBullet: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#D4FC79",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  tipBulletText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#0F172A",
+    fontWeight: "500",
+  },
+  trustBadges: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 24,
+    justifyContent: "center",
+  },
+  trustBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0FDF4",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 100,
+    gap: 6,
+  },
+  trustIcon: {
+    fontSize: 12,
+    color: "#10B981",
+  },
+  trustText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#10B981",
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 20,
+    zIndex: 1,
+  },
+  pagination: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#E2E8F0",
+  },
+  dotActive: {
+    width: 24,
+    backgroundColor: "#8B5CF6",
+  },
+  nextButton: {
+    backgroundColor: "#8B5CF6",
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: "center",
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  nextButtonText: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "700",
   },
   loadingText: {
     fontSize: 16,
     color: "#667085",
     textAlign: "center",
   },
-  welcomeContainer: {
+  loggedInContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    padding: 24,
+  },
+  userContainer: {
     alignItems: "center",
   },
-  header: {
+  header2: {
     alignItems: "center",
     marginBottom: 60,
   },
   title: {
     fontSize: 40,
-    fontWeight: "bold",
+    fontWeight: "900",
     color: "#0A1E42",
     marginBottom: 12,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     color: "#667085",
     textAlign: "center",
-  },
-  authContainer: {
-    width: "100%",
-    maxWidth: 320,
-  },
-  loginButton: {
-    backgroundColor: "#0A1E42",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  loginButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  signupButton: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 2,
-    borderColor: "#A78BFA",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-  },
-  signupButtonText: {
-    color: "#A78BFA",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  userContainer: {
-    alignItems: "center",
   },
   profileCard: {
     backgroundColor: "#F9FAFB",
@@ -316,236 +596,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  landingContainerWrapper: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  landingContainer: {
-    flex: 1,
-    backgroundColor: "#FAFAFA",
-  },
-  gradientCircle1: {
-    position: "absolute",
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: "#E9D5FF",
-    opacity: 0.3,
-    top: -100,
-    right: -100,
-    zIndex: 0,
-  },
-  gradientCircle2: {
-    position: "absolute",
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: "#D4FC79",
-    opacity: 0.2,
-    bottom: 100,
-    left: -80,
-    zIndex: 0,
-  },
-  landingHeader: {
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
-    zIndex: 1,
-  },
-  brandContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  logo: {
-    width: 40,
-    height: 40,
-  },
-  brandText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  contentWrapper: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    zIndex: 1,
-  },
-  heroSection: {
-    marginBottom: 40,
-  },
-  heroTitle: {
-    fontSize: 44,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 16,
-    lineHeight: 52,
-  },
-  heroTitleHighlight: {
-    color: "#8B5CF6",
-  },
-  heroDescription: {
-    fontSize: 16,
-    color: "#64748B",
-    lineHeight: 24,
-  },
-  featuresGrid: {
-    gap: 16,
+  welcomeLogo: {
+    width: 120,
+    height: 120,
     marginBottom: 32,
   },
-  featureCardLarge: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 28,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  featureIconLarge: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: "#F5F3FF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  featureIconText: {
-    fontSize: 28,
-  },
-  featureCardTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#0F172A",
-    marginBottom: 8,
-  },
-  featureCardDescription: {
-    fontSize: 14,
-    color: "#64748B",
-    lineHeight: 20,
-  },
-  featureRow: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  featureCardSmall: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  featureIconSmall: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  featureSmallTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#0F172A",
-  },
-  featureCardInfo: {
-    flex: 1,
-    flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 16,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-    gap: 12,
-  },
-  featureInfoIcon: {
-    fontSize: 28,
-  },
-  featureInfoContent: {
-    flex: 1,
-  },
-  featureInfoTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0F172A",
-    marginBottom: 2,
-  },
-  featureInfoDescription: {
-    fontSize: 11,
-    color: "#64748B",
-    lineHeight: 14,
-  },
-  trustSection: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 32,
-    justifyContent: "center",
-  },
-  trustBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F0FDF4",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 100,
-    gap: 6,
-  },
-  trustIcon: {
-    fontSize: 12,
-    color: "#10B981",
-  },
-  trustText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#10B981",
-  },
-  ctaSection: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  ctaButtonPrimary: {
-    backgroundColor: "#8B5CF6",
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: "center",
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  ctaButtonPrimaryText: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  ctaButtonSecondary: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#E2E8F0",
-  },
-  ctaButtonSecondaryText: {
-    color: "#0F172A",
-    fontSize: 17,
-    fontWeight: "600",
-  },
-  footer: {
-    alignItems: "center",
-  },
-  footerText: {
-    fontSize: 13,
-    color: "#94A3B8",
-    textAlign: "center",
+  pageMainLogo: {
+    width: 100,
+    height: 100,
+    marginBottom: 20,
   },
 });
