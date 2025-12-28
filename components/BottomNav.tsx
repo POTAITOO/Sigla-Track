@@ -7,9 +7,10 @@ export default function BottomNav() {
 
   const navItems = [
     { name: "Today", icon: "🏠", path: "/home" },
-    { name: "Journals", icon: "📊", path: "/goals" },
-    { name: "Appointments", icon: "📅", path: "/analytics" },
-    { name: "Settings", icon: "⚙️", path: "/profile" },
+    { name: "Schedule", icon: "📅", path: "/schedule" },
+    { name: "Productivity", icon: "📊", path: "/productivity" },
+    { name: "Create", icon: "➕", path: "/create" },
+    { name: "Calendar", icon: "📆", path: "/calendar" },
   ];
 
   return (
@@ -34,7 +35,11 @@ export default function BottomNav() {
           );
         })}
       </View>
-      {isActive(pathname, "/home") && <View style={styles.activeIndicator} />}
+      {isActive(pathname, "/home") && <View style={[styles.activeIndicator, { left: "10%" }]} />}
+      {isActive(pathname, "/schedule") && <View style={[styles.activeIndicator, { left: "30%" }]} />}
+      {isActive(pathname, "/productivity") && <View style={[styles.activeIndicator, { left: "50%" }]} />}
+      {isActive(pathname, "/create") && <View style={[styles.activeIndicator, { left: "70%" }]} />}
+      {isActive(pathname, "/calendar") && <View style={[styles.activeIndicator, { left: "90%" }]} />}
     </View>
   );
 }
@@ -79,8 +84,8 @@ const styles = StyleSheet.create({
   activeIndicator: {
     position: "absolute",
     bottom: 18,
-    left: "12.5%",
-    width: "25%",
+    left: "10%",
+    width: "20%",
     height: 3,
     backgroundColor: "#60A5FA",
     borderRadius: 2,

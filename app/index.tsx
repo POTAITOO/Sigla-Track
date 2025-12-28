@@ -2,13 +2,13 @@ import { Stack, useRouter } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import {
-  Dimensions,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Dimensions,
+    FlatList,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { auth } from "../firebaseConfig.js";
 
@@ -139,33 +139,31 @@ export default function Index() {
       );
     }
 
-    if (item.id === 3) {
-      return (
-        <View style={styles.page}>
-          <View style={styles.pageContent}>
-            <Text style={styles.pageTitle}>{item.title}</Text>
-            <View style={styles.tipsSection}>
-              {item.tips.map((tip: string, index: number) => (
-                <View key={index} style={styles.tipItem}>
-                  <View style={styles.tipBullet}>
-                    <Text style={styles.tipBulletText}>✓</Text>
-                  </View>
-                  <Text style={styles.tipText}>{tip}</Text>
+    return (
+      <View style={styles.page}>
+        <View style={styles.pageContent}>
+          <Text style={styles.pageTitle}>{item.title}</Text>
+          <View style={styles.tipsSection}>
+            {item.tips.map((tip: string, index: number) => (
+              <View key={index} style={styles.tipItem}>
+                <View style={styles.tipBullet}>
+                  <Text style={styles.tipBulletText}>✓</Text>
                 </View>
-              ))}
-            </View>
-            <View style={styles.trustBadges}>
-              {item.trust.map((trust: string, index: number) => (
-                <View key={index} style={styles.trustBadge}>
-                  <Text style={styles.trustIcon}>✓</Text>
-                  <Text style={styles.trustText}>{trust}</Text>
-                </View>
-              ))}
-            </View>
+                <Text style={styles.tipText}>{tip}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.trustBadges}>
+            {item.trust.map((trust: string, index: number) => (
+              <View key={index} style={styles.trustBadge}>
+                <Text style={styles.trustIcon}>✓</Text>
+                <Text style={styles.trustText}>{trust}</Text>
+              </View>
+            ))}
           </View>
         </View>
-      );
-    }
+      </View>
+    );
   };
 
   if (loading) {
@@ -219,7 +217,10 @@ export default function Index() {
           <TouchableOpacity 
             onPress={handleBack}
             disabled={currentPage === 0}
-            style={currentPage === 0 && styles.backButtonDisabled}
+            style={[
+              styles.backButtonContainer,
+              currentPage === 0 && styles.backButtonDisabled
+            ]}
           >
             <Text style={[
               styles.backText,
