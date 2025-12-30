@@ -62,6 +62,8 @@ export default function Index() {
     return () => unsubscribe();
   }, []);
 
+ 
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
