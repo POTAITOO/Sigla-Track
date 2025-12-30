@@ -1,43 +1,11 @@
 import { Stack, useRouter } from "expo-router";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { useState } from "react";
-import {
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from "react-native";
-import { auth } from "../firebaseConfig.js";
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError("Please fill in all fields");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.replace("/");
-    } catch (error: any) {
-      setError(error.message || "Login failed");
-    } finally {
-      setLoading(false);
-    }
+    router.replace("/home");
   };
 
   return (
@@ -83,8 +51,6 @@ export default function Login() {
                 style={styles.input}
                 placeholder="Enter your email"
                 placeholderTextColor="#999"
-                value={email}
-                onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
@@ -97,8 +63,6 @@ export default function Login() {
                 style={styles.input}
                 placeholder="Enter your password"
                 placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
                 secureTextEntry
                 autoComplete="password"
               />
@@ -108,16 +72,13 @@ export default function Login() {
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {null}
 
             <TouchableOpacity
-              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+              style={styles.loginButton}
               onPress={handleLogin}
-              disabled={loading}
             >
-              <Text style={styles.loginButtonText}>
-                {loading ? "Signing in..." : "Sign In"}
-              </Text>
+              <Text style={styles.loginButtonText}>Sign In</Text>
             </TouchableOpacity>
           </View>
 
