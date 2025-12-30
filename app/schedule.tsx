@@ -1,22 +1,24 @@
 import { Stack } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-    Dimensions,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import BottomNav from "../components/BottomNav";
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function Schedule() {
-  // Get today's date
   const today = new Date();
   const todayDate = today.getDate();
-  const todayMonth = today.getMonth() + 1; // JavaScript months are 0-indexed
+  const todayMonth = today.getMonth() + 1;
   const todayYear = today.getFullYear();
 
   const [selectedDate, setSelectedDate] = useState(todayDate);
@@ -30,19 +32,21 @@ export default function Schedule() {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // 2020 to 2030
+  const monthsShort = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
   const years = Array.from({ length: 11 }, (_, i) => 2020 + i);
 
   const getDaysInMonth = (month: number, year: number) => {
     return new Date(year, month, 0).getDate();
   };
 
-
   const getFirstDayOfMonth = (month: number, year: number) => {
     return new Date(year, month - 1, 1).getDay();
   };
 
-  // Generate all days in selected month
   const daysOfMonth = useMemo(() => {
     const days = [];
     const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
@@ -60,60 +64,75 @@ export default function Schedule() {
     return days;
   }, [selectedMonth, selectedYear]);
 
+  // Generate time slots in 30-minute intervals
+  const timeSlots = [];
+  for (let h = 0; h < 24; h++) {
+    timeSlots.push(`${h.toString().padStart(2, '0')}:00`);
+    timeSlots.push(`${h.toString().padStart(2, '0')}:30`);
+  }
 
-  const timeSlots = [
-    '00:00', '01:00', '02:00', '03:00', '04:00', '05:00',
-    '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
-    '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-    '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
-  ];
-
-  // Sample events
   const events = [
     {
       id: 1,
       title: 'Project Discussion',
-      time: '09:00 - 10:00',
-      color: '#8B5CF6',
-      slot: 9,
+      description: '09:00AM - 10:00AM',
+      color: '#FFE4CC',
+      textColor: '#D97706',
+      startTime: '09:00',
+      endTime: '10:00',
       date: 30,
       month: 12,
       year: 2025,
     },
     {
       id: 2,
-      title: 'maglinis ng bahay',
-      time: '10:00 - 11:00',
-      color: '#EC4899',
-      slot: 10,
-      date: 29,
+      title: 'Lunch Time',
+      description: 'Kain na 11-12pm',
+      color: '#D1F2EB',
+      textColor: '#0F766E',
+      startTime: '11:00',
+      endTime: '12:00',
+      date: 30,
       month: 12,
       year: 2025,
     },
     {
       id: 3,
-      title: 'Lunch time',
-      time: '12:00 - 13:00',
-      color: '#F59E0B',
-      slot: 12,
-      date: 29,
+      title: 'Maligo Time',
+      description: 'dasdasdassd',
+      color: '#FFE4CC',
+      textColor: '#D97706',
+      startTime: '13:30',
+      endTime: '14:30',
+      date: 30,
       month: 12,
       year: 2025,
     },
     {
       id: 4,
-      title: 'Create color style',
-      description: 'Kickoff and one page others',
-      time: '15:00 - 16:00',
-      color: '#10B981',
-      slot: 15,
-      date: 18,
-      month: 9,
+      title: 'gawa assignments',
+      description: 'Softeng/COSC 80/Lunes',
+      color: '#D1F2EB',
+      textColor: '#0F766E',
+      startTime: '15:00',
+      endTime: '16:00',
+      date: 30,
+      month: 12,
       year: 2025,
     },
   ];
 
-  // Filter events for selected date, month, and year
+  // Helper function to convert time string to slot index
+  const timeToSlot = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return (hours * 2) + (minutes >= 30 ? 1 : 0);
+  };
+
+  // Helper function to calculate duration in slots
+  const calculateDuration = (startTime: string, endTime: string) => {
+    return timeToSlot(endTime) - timeToSlot(startTime);
+  };
+
   const eventsForSelectedDate = events.filter(
     event => 
       event.date === selectedDate && 
@@ -124,93 +143,81 @@ export default function Schedule() {
   const handleMonthSelect = (monthIndex: number) => {
     setSelectedMonth(monthIndex + 1);
     setShowMonthPicker(false);
-    // Reset to first day of new month
     setSelectedDate(1);
   };
 
   const handleYearSelect = (year: number) => {
     setSelectedYear(year);
     setShowYearPicker(false);
-    // Reset to first day
     setSelectedDate(1);
+  };
+
+  const handleMonthButtonPress = () => {
+    setShowMonthPicker(true);
   };
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={styles.container}>
-        {/* Header with Dropdowns */}
+        {/* Header */}
         <View style={styles.header}>
-          <View style={styles.dropdownContainer}>
+          <View style={styles.headerButtons}>
             <TouchableOpacity 
-              style={styles.dropdown}
-              onPress={() => setShowMonthPicker(true)}
-            >
-              <Text style={styles.dropdownText}>
-                {months[selectedMonth - 1]}
-              </Text>
-              <Text style={styles.dropdownArrow}>▼</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.dropdown}
+              style={styles.yearButton}
               onPress={() => setShowYearPicker(true)}
             >
-              <Text style={styles.dropdownText}>{selectedYear}</Text>
+              <Text style={styles.yearText}>{selectedYear}</Text>
+              <Text style={styles.dropdownArrow}>▼</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.monthButton}
+              onPress={handleMonthButtonPress}
+            >
+              <Text style={styles.monthText}>
+                {monthsShort[selectedMonth - 1]}
+              </Text>
               <Text style={styles.dropdownArrow}>▼</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Days Horizontal Scroll */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.daysScrollContainer}
-          contentContainerStyle={styles.daysContentContainer}
-        >
-          {daysOfMonth.map((item, index) => {
-            const isToday = 
-              item.date === todayDate && 
-              selectedMonth === todayMonth && 
-              selectedYear === todayYear;
-            const isSelected = selectedDate === item.date;
-            
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.dayItem,
-                  isToday && styles.dayItemToday,
-                  isSelected && styles.dayItemActive,
-                ]}
-                onPress={() => setSelectedDate(item.date)}
-              >
-                <Text
+        <View style={styles.daysContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.daysContentContainer}
+          >
+            {daysOfMonth.map((item, index) => {
+              const isToday = 
+                item.date === todayDate && 
+                selectedMonth === todayMonth && 
+                selectedYear === todayYear;
+              const isSelected = selectedDate === item.date;
+              
+              return (
+                <TouchableOpacity
+                  key={index}
                   style={[
-                    styles.dayLetter,
-                    isToday && styles.dayTextToday,
-                    isSelected && styles.dayTextActive,
+                    styles.dayItem,
+                    isSelected && styles.dayItemActive,
                   ]}
+                  onPress={() => setSelectedDate(item.date)}
                 >
-                  {item.day}
-                </Text>
-                <Text
-                  style={[
-                    styles.dayNumber,
-                    isToday && styles.dayTextToday,
-                    isSelected && styles.dayTextActive,
-                  ]}
-                >
-                  {item.date}
-                </Text>
-                {isToday && !isSelected && (
-                  <View style={styles.todayDot} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                  <Text style={[styles.dayLetter, isSelected && styles.dayTextActive]}>
+                    {item.day}
+                  </Text>
+                  <Text style={[styles.dayNumber, isSelected && styles.dayTextActive]}>
+                    {item.date}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
         {/* Schedule */}
         <ScrollView
@@ -218,34 +225,67 @@ export default function Schedule() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scheduleContent}
         >
-          {timeSlots.map((time, index) => (
-            <View key={index} style={styles.timeSlotRow}>
-              <View style={styles.timeColumn}>
-                <Text style={styles.timeText}>{time}</Text>
+          {timeSlots.map((time, index) => {
+            const hasEvent = eventsForSelectedDate.some(
+              event => {
+                const startSlot = timeToSlot(event.startTime);
+                const duration = calculateDuration(event.startTime, event.endTime);
+                return index >= startSlot && index < startSlot + duration;
+              }
+            );
+            
+            return (
+              <View key={index} style={styles.timeSlotRow}>
+                <View style={styles.timeColumn}>
+                  {time.endsWith(':00') && (
+                    <Text style={styles.timeText}>{time}</Text>
+                  )}
+                </View>
+                
+                <View style={styles.eventColumnWrapper}>
+                  <View style={styles.verticalLine} />
+                  
+                  <View style={styles.eventColumn}>
+                    {eventsForSelectedDate
+                      .filter((event) => timeToSlot(event.startTime) === index)
+                      .map((event) => {
+                        const duration = calculateDuration(event.startTime, event.endTime);
+                        return (
+                          <View
+                            key={event.id}
+                            style={[
+                              styles.eventCard,
+                              { 
+                                backgroundColor: event.color,
+                                minHeight: duration * 35,
+                              },
+                            ]}
+                          >
+                            <View style={[styles.colorBar, { backgroundColor: event.textColor }]} />
+                            <View style={styles.eventContent}>
+                              <Text 
+                                style={[styles.eventTitle, { color: event.textColor }]}
+                                numberOfLines={2}
+                                ellipsizeMode="tail"
+                              >
+                                {event.title}
+                              </Text>
+                              <Text 
+                                style={[styles.eventDescription, { color: event.textColor }]}
+                                numberOfLines={3}
+                                ellipsizeMode="tail"
+                              >
+                                {event.description}
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      })}
+                  </View>
+                </View>
               </View>
-              <View style={styles.eventColumn}>
-                {eventsForSelectedDate
-                  .filter((event) => event.slot === index)
-                  .map((event) => (
-                    <View
-                      key={event.id}
-                      style={[
-                        styles.eventCard,
-                        { backgroundColor: event.color },
-                      ]}
-                    >
-                      <Text style={styles.eventTitle}>{event.title}</Text>
-                      <Text style={styles.eventTime}>{event.time}</Text>
-                      {event.description && (
-                        <Text style={styles.eventDescription}>
-                          {event.description}
-                        </Text>
-                      )}
-                    </View>
-                  ))}
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
 
         {/* Month Picker Modal */}
@@ -260,30 +300,35 @@ export default function Schedule() {
             activeOpacity={1}
             onPress={() => setShowMonthPicker(false)}
           >
-            <View style={styles.pickerContainer}>
-              <Text style={styles.pickerTitle}>Select Month</Text>
-              <ScrollView style={styles.pickerScroll}>
-                {months.map((month, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.pickerItem,
-                      selectedMonth === index + 1 && styles.pickerItemActive,
-                    ]}
-                    onPress={() => handleMonthSelect(index)}
-                  >
-                    <Text
+            <TouchableOpacity 
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerTitle}>Select Month</Text>
+                <ScrollView style={styles.pickerScroll}>
+                  {months.map((month, index) => (
+                    <TouchableOpacity
+                      key={index}
                       style={[
-                        styles.pickerItemText,
-                        selectedMonth === index + 1 && styles.pickerItemTextActive,
+                        styles.pickerItem,
+                        selectedMonth === index + 1 && styles.pickerItemActive,
                       ]}
+                      onPress={() => handleMonthSelect(index)}
                     >
-                      {month}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+                      <Text
+                        style={[
+                          styles.pickerItemText,
+                          selectedMonth === index + 1 && styles.pickerItemTextActive,
+                        ]}
+                      >
+                        {month}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
 
@@ -299,32 +344,38 @@ export default function Schedule() {
             activeOpacity={1}
             onPress={() => setShowYearPicker(false)}
           >
-            <View style={styles.pickerContainer}>
-              <Text style={styles.pickerTitle}>Select Year</Text>
-              <ScrollView style={styles.pickerScroll}>
-                {years.map((year) => (
-                  <TouchableOpacity
-                    key={year}
-                    style={[
-                      styles.pickerItem,
-                      selectedYear === year && styles.pickerItemActive,
-                    ]}
-                    onPress={() => handleYearSelect(year)}
-                  >
-                    <Text
+            <TouchableOpacity 
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerTitle}>Select Year</Text>
+                <ScrollView style={styles.pickerScroll}>
+                  {years.map((year) => (
+                    <TouchableOpacity
+                      key={year}
                       style={[
-                        styles.pickerItemText,
-                        selectedYear === year && styles.pickerItemTextActive,
+                        styles.pickerItem,
+                        selectedYear === year && styles.pickerItemActive,
                       ]}
+                      onPress={() => handleYearSelect(year)}
                     >
-                      {year}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+                      <Text
+                        style={[
+                          styles.pickerItemText,
+                          selectedYear === year && styles.pickerItemTextActive,
+                        ]}
+                      >
+                        {year}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
+        <BottomNav />
       </View>
     </>
   );
@@ -334,135 +385,147 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'ios' ? 44 : Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
-    paddingHorizontal: width * 0.05,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
-  dropdownContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  dropdown: {
+  headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 8,
+    gap: 12,
   },
-  dropdownText: {
-    fontSize: width * 0.042,
-    fontWeight: '700',
-    color: '#0F172A',
+  yearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  yearText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  monthButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  monthText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
   },
   dropdownArrow: {
-    fontSize: width * 0.03,
-    color: '#64748B',
+    fontSize: 10,
+    color: '#6B7280',
   },
-  daysScrollContainer: {
-    maxHeight: 80,
+  daysContainer: {
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#E5E7EB',
   },
   daysContentContainer: {
-    paddingHorizontal: width * 0.03,
-    paddingVertical: 15,
+    paddingHorizontal: 12,
+    gap: 8,
   },
   dayItem: {
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: width * 0.035,
-    borderRadius: 12,
-    marginHorizontal: 4,
-    minWidth: width * 0.14,
-    position: 'relative',
-  },
-  dayItemToday: {
-    borderWidth: 2,
-    borderColor: '#10B981',
-    backgroundColor: '#F0FDF4',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 50,
   },
   dayItemActive: {
-    backgroundColor: '#8B5CF6',
-    borderWidth: 0,
+    backgroundColor: '#000000',
+    borderRadius: 8,
   },
   dayLetter: {
-    fontSize: width * 0.032,
-    color: '#94A3B8',
+    fontSize: 11,
+    color: '#6B7280',
     marginBottom: 4,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   dayNumber: {
-    fontSize: width * 0.042,
-    color: '#0F172A',
-    fontWeight: '700',
-  },
-  dayTextToday: {
-    color: '#10B981',
+    fontSize: 15,
+    color: '#1F2937',
+    fontWeight: '600',
   },
   dayTextActive: {
     color: '#FFFFFF',
   },
-  todayDot: {
-    position: 'absolute',
-    bottom: 4,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-  },
   scheduleContainer: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   scheduleContent: {
-    paddingHorizontal: width * 0.05,
-    paddingBottom: 20,
+    paddingBottom: 30,
   },
   timeSlotRow: {
     flexDirection: 'row',
-    minHeight: 70,
-    marginBottom: 8,
+    minHeight: 35,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   timeColumn: {
-    width: width * 0.15,
-    paddingTop: 5,
+    width: 60,
+    paddingLeft: 16,
+    paddingTop: 4,
   },
   timeText: {
-    fontSize: width * 0.032,
-    color: '#94A3B8',
-    fontWeight: '600',
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  eventColumnWrapper: {
+    flex: 1,
+    position: 'relative',
+    paddingLeft: 16,
+  },
+  verticalLine: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: '#E5E7EB',
   },
   eventColumn: {
     flex: 1,
-    marginLeft: width * 0.03,
+    paddingRight: 16,
   },
   eventCard: {
-    borderRadius: 12,
-    padding: width * 0.035,
-    marginBottom: 8,
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 2,
+  },
+  colorBar: {
+    width: 4,
+  },
+  eventContent: {
+    flex: 1,
+    padding: 10,
+    justifyContent: 'flex-start',
   },
   eventTitle: {
-    fontSize: width * 0.038,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
     marginBottom: 4,
-  },
-  eventTime: {
-    fontSize: width * 0.03,
-    color: '#FFFFFF',
-    opacity: 0.9,
-    marginBottom: 4,
+    lineHeight: 16,
   },
   eventDescription: {
-    fontSize: width * 0.03,
-    color: '#FFFFFF',
-    opacity: 0.85,
-    lineHeight: width * 0.042,
+    fontSize: 11,
+    lineHeight: 14,
+    flexShrink: 1,
   },
   modalOverlay: {
     flex: 1,
@@ -473,32 +536,32 @@ const styles = StyleSheet.create({
   pickerContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    width: width * 0.8,
-    maxHeight: width * 1.2,
+    width: width * 0.85,
+    maxHeight: height * 0.7,
     padding: 20,
   },
   pickerTitle: {
-    fontSize: width * 0.05,
+    fontSize: 18,
     fontWeight: '700',
     color: '#0F172A',
     marginBottom: 16,
     textAlign: 'center',
   },
   pickerScroll: {
-    maxHeight: width * 0.9,
+    maxHeight: height * 0.55,
   },
   pickerItem: {
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
     marginBottom: 8,
     backgroundColor: '#F8FAFC',
   },
   pickerItemActive: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#000000',
   },
   pickerItemText: {
-    fontSize: width * 0.042,
+    fontSize: 15,
     fontWeight: '600',
     color: '#0F172A',
     textAlign: 'center',
