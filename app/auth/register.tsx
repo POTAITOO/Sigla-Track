@@ -2,18 +2,18 @@ import { Stack, useRouter } from "expo-router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import {
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { auth } from "../../firebaseConfig.js";
-import { getFirebaseErrorMessage } from "../../services/firebaseErrorHandler";
+import { getFirebaseErrorMessage } from "../../services/firebase/firebaseErrorHandler";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -25,7 +25,8 @@ export default function Register() {
   const router = useRouter();
 
   const handleRegister = async () => {
-    if (!name || !email || !password || !confirmPassword) {
+    const trimmedEmail = email.trim();
+    if (!name || !trimmedEmail || !password || !confirmPassword) {
       setError("Please fill in all fields");
       return;
     }
@@ -44,11 +45,15 @@ export default function Register() {
     setError("");
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      router.replace("/");
-    } catch (error: any) {
-      // Get user-friendly error message from Firebase error code
-      const errorCode = error.code || error.message;
+      await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+      router.replace("/tabs/home");
+    } catch (err) {
+      let errorCode = "unknown";
+      if (typeof err === "object" && err !== null && "code" in err) {
+        errorCode = (err as { code: string }).code;
+      } else if (typeof err === "object" && err !== null && "message" in err) {
+        errorCode = (err as { message: string }).message;
+      }
       setError(getFirebaseErrorMessage(errorCode));
     } finally {
       setLoading(false);
@@ -163,7 +168,7 @@ export default function Register() {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => router.push("/login")}>
+            <TouchableOpacity onPress={() => router.push("/auth/login")}> 
               <Text style={styles.loginLink}>Sign In</Text>
             </TouchableOpacity>
           </View>

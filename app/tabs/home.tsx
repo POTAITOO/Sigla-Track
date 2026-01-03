@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
-import BottomNav from "../components/BottomNav";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Mock task data
 const MOCK_TASKS = [
@@ -49,6 +49,8 @@ const MOCK_TASKS = [
 
 export default function Home() {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const insets = useSafeAreaInsets();
+  const NAVBAR_HEIGHT = 72;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -161,7 +163,7 @@ export default function Home() {
 
           <ScrollView
             style={styles.tasksScrollView}
-            contentContainerStyle={styles.tasksScrollContent}
+            contentContainerStyle={[styles.tasksScrollContent, { paddingBottom: insets.bottom + NAVBAR_HEIGHT }]}
             showsVerticalScrollIndicator={false}
           >
             {MOCK_TASKS.map((task) => (
@@ -187,8 +189,6 @@ export default function Home() {
             ))}
           </ScrollView>
         </View>
-
-        <BottomNav />
       </View>
     </>
   );
