@@ -39,7 +39,7 @@ export default function Productivity() {
             </View>
           </View>
           <Text style={styles.headerSubtitle}>
-            Prioritise and set deadlines so you don't miss anything important
+            Prioritise and set deadlines so you don&apos;t miss anything important
           </Text>
         </View>
 
@@ -76,7 +76,7 @@ export default function Productivity() {
               {/* Badge */}
               <View style={styles.badge}>
                 <Text style={styles.badgeIcon}>✱</Text>
-                <Text style={styles.badgeText}>You're productive than 89% teams</Text>
+                <Text style={styles.badgeText}>You&apos;re productive than 89% teams</Text>
               </View>
             </View>
 
@@ -116,7 +116,7 @@ export default function Productivity() {
             onPress={() => router.push("/home")}
             activeOpacity={0.9}
           >
-            <Text style={styles.ctaText}>Let's get started!</Text>
+            <Text style={styles.ctaText}>Let&apos;s get started!</Text>
             <View style={styles.ctaArrow}>
               <Text style={styles.arrowIcon}>→</Text>
             </View>
