@@ -1,9 +1,11 @@
 import { Stack, useRouter } from "expo-router";
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import BottomNav from "../components/BottomNav";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Productivity() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const NAVBAR_HEIGHT = 72; // Adjust if your navbar is taller/shorter
 
   return (
     <>
@@ -45,7 +47,7 @@ export default function Productivity() {
 
         <ScrollView 
           style={styles.content} 
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + NAVBAR_HEIGHT }]}
           showsVerticalScrollIndicator={false}
         >
           {/* Horizontal ScrollView for Cards */}
@@ -122,8 +124,6 @@ export default function Productivity() {
             </View>
           </TouchableOpacity>
         </ScrollView>
-
-        <BottomNav />
       </View>
     </>
   );

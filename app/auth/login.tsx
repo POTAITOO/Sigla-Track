@@ -1,11 +1,40 @@
 import { Stack, useRouter } from "expo-router";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { useState } from "react";
+import { auth } from "../../firebaseConfig.js";
+
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
+import { getFirebaseErrorMessage } from "../../services/firebase/firebaseErrorHandler";
 
 export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async () => {
-    router.replace("/home");
+    setError("");
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      setError("Please enter both email and password.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, trimmedEmail, password);
+      router.replace("/tabs/home");
+    } catch (err) {
+      let errorCode = "unknown";
+      if (typeof err === "object" && err !== null && "code" in err) {
+        errorCode = (err as { code: string }).code;
+      } else if (typeof err === "object" && err !== null && "message" in err) {
+        errorCode = (err as { message: string }).message;
+      }
+      setError(getFirebaseErrorMessage(errorCode));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -32,7 +61,7 @@ export default function Login() {
 
           <View style={styles.brandHeader}>
             <Image
-              source={require("../assets/images/logo.png")}
+              source={require("../../assets/images/logo.png")}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -54,6 +83,8 @@ export default function Login() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
               />
             </View>
 
@@ -65,6 +96,8 @@ export default function Login() {
                 placeholderTextColor="#999"
                 secureTextEntry
                 autoComplete="password"
+                value={password}
+                onChangeText={setPassword}
               />
             </View>
 
@@ -72,19 +105,21 @@ export default function Login() {
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            {null}
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
-              style={styles.loginButton}
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
               onPress={handleLogin}
+              disabled={loading}
             >
-              <Text style={styles.loginButtonText}>Sign In</Text>
+              <Text style={styles.loginButtonText}>{loading ? "Signing in..." : "Sign In"}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don&apos;t have an account? </Text>
-            <TouchableOpacity onPress={() => router.push("/register")}>
+            <TouchableOpacity onPress={() => router.push("/auth/register")}>
               <Text style={styles.signupLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
