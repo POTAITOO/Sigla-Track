@@ -2,15 +2,15 @@ import { Stack, useRouter } from "expo-router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import {
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { auth } from "../../firebaseConfig.js";
 import { getFirebaseErrorMessage } from "../../services/firebaseErrorHandler";
@@ -83,7 +83,7 @@ export default function Register() {
               style={styles.logo}
               resizeMode="contain"
             />
-            <Text style={styles.brandName}>Sigla-Track</Text>
+            <Text style={styles.brandName}>SiglaTrack</Text>
           </View>
 
           <View style={styles.header}>
@@ -232,8 +232,9 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontSize: 28,
-    fontWeight: "700",
+    fontWeight: "900",
     color: "#0F172A",
+    letterSpacing: -0.5,
   },
   header: {
     marginBottom: 40,

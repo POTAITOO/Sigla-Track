@@ -1,46 +1,11 @@
 import { Stack, useRouter } from "expo-router";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { useState } from "react";
-import {
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { auth } from "../../firebaseConfig.js";
-import { getFirebaseErrorMessage } from "../../services/firebaseErrorHandler";
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError("Please fill in all fields");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.replace("/");
-    } catch (error: any) {
-      // Get user-friendly error message from Firebase error code
-      const errorCode = error.code || error.message;
-      setError(getFirebaseErrorMessage(errorCode));
-    } finally {
-      setLoading(false);
-    }
+    router.replace("/home");
   };
 
   return (
@@ -71,7 +36,7 @@ export default function Login() {
               style={styles.logo}
               resizeMode="contain"
             />
-            <Text style={styles.brandName}>Sigla-Track</Text>
+            <Text style={styles.brandName}>SiglaTrack</Text>
           </View>
 
           <View style={styles.header}>
@@ -86,8 +51,6 @@ export default function Login() {
                 style={styles.input}
                 placeholder="Enter your email"
                 placeholderTextColor="#999"
-                value={email}
-                onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
@@ -100,8 +63,6 @@ export default function Login() {
                 style={styles.input}
                 placeholder="Enter your password"
                 placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
                 secureTextEntry
                 autoComplete="password"
               />
@@ -111,18 +72,13 @@ export default function Login() {
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {null}
 
             <TouchableOpacity
-              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+              style={styles.loginButton}
               onPress={handleLogin}
-              disabled={loading}
-               accessibilityLabel="Sign in button"
-               accessibilityHint={loading ? "Signing in..." : undefined}
             >
-              <Text style={styles.loginButtonText}>
-                {loading ? "Signing in..." : "Sign In"}
-              </Text>
+              <Text style={styles.loginButtonText}>Sign In</Text>
             </TouchableOpacity>
           </View>
 
@@ -197,8 +153,9 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontSize: 28,
-    fontWeight: "700",
+    fontWeight: "900",
     color: "#0F172A",
+    letterSpacing: -0.5,
   },
   header: {
     marginBottom: 40,
