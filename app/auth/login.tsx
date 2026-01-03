@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { auth } from "../../firebaseConfig.js";
-import { getFirebaseErrorMessage } from "../../services/firebaseErrorHandler.js";
+import { getFirebaseErrorMessage } from "../../services/firebaseErrorHandler";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -67,7 +67,7 @@ export default function Login() {
 
           <View style={styles.brandHeader}>
             <Image
-              source={require("../assets/images/logo.png")}
+              source={require("../../assets/images/logo.png")}
               style={styles.logo}
               resizeMode="contain"
             />
