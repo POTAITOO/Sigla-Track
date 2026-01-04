@@ -10,7 +10,7 @@ export default function BottomNav() {
     { name: "Schedule", icon: "📅", path: "/schedule" },
     { name: "Productivity", icon: "📊", path: "/productivity" },
     { name: "Create", icon: "➕", path: "/create" },
-    { name: "Calendar", icon: "📆", path: "/calendar" },
+    { name: "Settings", icon: "⚙️", path: "/settings" },
   ];
 
   return (
