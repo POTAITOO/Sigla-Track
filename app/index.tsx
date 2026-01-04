@@ -1,5 +1,5 @@
 import { Stack, useRouter } from "expo-router";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import {
   Dimensions,
@@ -62,16 +62,6 @@ export default function Index() {
     return () => unsubscribe();
   }, []);
 
- 
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
-
   const handleNext = () => {
     if (currentPage < onboardingData.length - 1) {
       const nextPage = currentPage + 1;
@@ -80,10 +70,6 @@ export default function Index() {
     } else {
       router.push("/auth/login");
     }
-  };
-
-  const handleSkip = () => {
-    router.push("/auth/login");
   };
 
   const handleBack = () => {
@@ -167,19 +153,25 @@ export default function Index() {
       </View>
     );
   };
-//ito ung sa landing page
- if (loading) {
+
+  // Always call useEffect at the top level
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/tabs/home');
+    }
+  }, [loading, user, router]);
+
+  if (loading) {
     return (
       <View style={styles.container}>
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
-  // TEMP: Skip login and go directly to /tabs/home for development
- /* if (!loading) {
-    router.replace('/tabs/home');
+
+  if (!loading && user) {
     return null;
-  }*/
+  }
 
 
   return (

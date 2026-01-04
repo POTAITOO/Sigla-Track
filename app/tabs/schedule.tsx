@@ -1,14 +1,17 @@
+import { useAuth } from '@/context/authContext';
+import { eventServices } from '@/services/eventServices';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Calendar from 'expo-calendar';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,8 +24,15 @@ interface CalendarEvent {
 }
 
 export default function Schedule() {
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const NAVBAR_HEIGHT = 72;
+
+  // Dynamic header style to access insets
+  const headerStyle = {
+    ...styles.header,
+    paddingTop: insets.top + 16,
+  };
 
   const today = new Date();
   const [weekStartDate, setWeekStartDate] = useState(() => {
@@ -52,54 +62,82 @@ export default function Schedule() {
     return days;
   }, [weekStartDate]);
 
-  // Request calendar permissions and fetch events
-  const fetchCalendarEvents = useCallback(async () => {
+  // Fetch both Firestore and device calendar events for the week
+  const fetchAllEvents = useCallback(async () => {
     try {
-      const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
       const weekDays = getWeekDays();
       const startDate = new Date(weekDays[0]);
       startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(weekDays[6]);
       endDate.setHours(23, 59, 59, 999);
 
-      let allEvents: CalendarEvent[] = [];
-
-      for (const calendar of calendars) {
-        const calendarEvents = await Calendar.getEventsAsync(
-          [calendar.id],
-          startDate,
-          endDate
-        );
-
-        const mappedEvents = calendarEvents.map((event: any) => ({
-          id: event.id,
-          title: event.title,
-          startDate: new Date(event.startDate),
-          endDate: new Date(event.endDate),
-          color: calendar.color || '#8B5CF6',
-        }));
-
-        allEvents = [...allEvents, ...mappedEvents];
+      // 1. Fetch device calendar events
+      let deviceEvents: CalendarEvent[] = [];
+      try {
+        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+        for (const calendar of calendars) {
+          const calendarEvents = await Calendar.getEventsAsync(
+            [calendar.id],
+            startDate,
+            endDate
+          );
+          const mappedEvents = calendarEvents.map((event: any) => ({
+            id: `device-${event.id}`,
+            title: event.title,
+            startDate: new Date(event.startDate),
+            endDate: new Date(event.endDate),
+            color: calendar.color || '#8B5CF6',
+          }));
+          deviceEvents = [...deviceEvents, ...mappedEvents];
+        }
+      } catch (err) {
+        console.error('Error fetching device calendar events:', err);
       }
 
-      // Sort by start time
+      // 2. Fetch Firestore events for the user
+      let firestoreEvents: CalendarEvent[] = [];
+      if (user?.uid) {
+        try {
+          const eventsFromFirestore = await eventServices.getEventsByDateRange(user.uid, startDate, endDate);
+          firestoreEvents = eventsFromFirestore.map((event: any) => ({
+            id: `firestore-${event.id}`,
+            title: event.title,
+            startDate: new Date(event.startDate),
+            endDate: new Date(event.endDate),
+            color: event.color || '#60A5FA',
+          }));
+        } catch (err) {
+          console.error('Error fetching Firestore events:', err);
+        }
+      }
+
+      // 3. Merge and sort
+      const allEvents = [...deviceEvents, ...firestoreEvents];
       allEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
       setEvents(allEvents);
     } catch (error) {
-      console.error('Error fetching calendar events:', error);
+      console.error('Error fetching all events:', error);
     }
-  }, [getWeekDays]);
+  }, [getWeekDays, user]);
+
 
   useEffect(() => {
     (async () => {
       const { status } = await Calendar.requestCalendarPermissionsAsync();
       if (status === 'granted') {
-        fetchCalendarEvents();
+        fetchAllEvents();
       } else {
         Alert.alert('Permission required', 'Calendar permission is needed to display your events.');
       }
     })();
-  }, [fetchCalendarEvents]);
+  }, [fetchAllEvents]);
+
+  // Refresh events every time the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchAllEvents();
+    }, [fetchAllEvents])
+  );
 
   // Get events for a specific day
   const getEventsForDay = (day: Date) => {
@@ -172,7 +210,7 @@ export default function Schedule() {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={styles.container}>
         {/* Header with Month/Year and Navigation */}
-        <View style={styles.header}>
+        <View style={headerStyle}>
           <TouchableOpacity
             style={styles.monthDropdownButton}
             onPress={() => {
@@ -414,9 +452,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 48,
     paddingBottom: 18,
-    marginTop: 16,
+    marginTop: 0,
   },
   headerMonth: {
     fontSize: 24,
@@ -502,7 +539,6 @@ const styles = StyleSheet.create({
   weekDaysGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 4,
     marginBottom: 12,
   },
   dayCell: {
@@ -514,6 +550,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     borderWidth: 1,
     borderColor: 'transparent',
+    marginHorizontal: 2,
   },
   dayCellSelected: {
     backgroundColor: '#8B5CF6',
@@ -636,12 +673,11 @@ const styles = StyleSheet.create({
   monthDropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   monthDropdownIcon: {
     fontSize: 12,
     color: '#8B5CF6',
-    marginLeft: 6,
+    marginLeft: 8,
     fontWeight: '600',
   },
   monthPickerScroll: {
