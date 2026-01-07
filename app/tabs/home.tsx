@@ -18,6 +18,9 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+  const [filter, setFilter] = useState<'all' | 'today'>('today');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedDropdownOption, setSelectedDropdownOption] = useState('Option 1');
   const insets = useSafeAreaInsets();
   const NAVBAR_HEIGHT = 72;
 
@@ -40,18 +43,23 @@ export default function Home() {
     if (!user?.uid) return;
     try {
       const allEvents = await eventServices.getUserEvents(user.uid);
-      const today = new Date();
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-      const todaysEvents = allEvents.filter((event: any) => {
-        const eventStart = new Date(event.startDate);
-        return eventStart >= startOfDay && eventStart <= endOfDay;
-      });
-      setEvents(todaysEvents);
+      
+      if (filter === 'today') {
+        const today = new Date();
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+        const todaysEvents = allEvents.filter((event: any) => {
+          const eventStart = new Date(event.startDate);
+          return eventStart >= startOfDay && eventStart <= endOfDay;
+        });
+        setEvents(todaysEvents);
+      } else {
+        setEvents(allEvents);
+      }
     } catch (error) {
       console.error('Failed to fetch events:', error);
     }
-  }, [user]);
+  }, [user, filter]);
 
   useEffect(() => {
     fetchEvents();
@@ -108,55 +116,55 @@ export default function Home() {
           left: -scale(50),
         }]} />
 
-        {/* Header */}
+        {/* Header - Reduced spacing */}
         <View style={{
-          paddingTop: Math.max(insets.top, 0) + verticalScale(16),
+          paddingTop: Math.max(insets.top, 0) + verticalScale(8),
           paddingHorizontal: scale(20),
-          paddingBottom: verticalScale(12),
+          paddingBottom: verticalScale(6),
           zIndex: 1,
         }}>
-          <Text style={{ fontSize: moderateScale(28), fontWeight: 'bold', color: '#222' }}>
+          <Text style={{ fontSize: moderateScale(24), fontWeight: 'bold', color: '#222' }}>
             Welcome!
           </Text>
         </View>
 
-        {/* Date Card */}
+        {/* Date Card - Reduced spacing */}
         <View style={{ 
           paddingHorizontal: scale(20), 
-          paddingBottom: verticalScale(20),
+          paddingBottom: verticalScale(12),
           zIndex: 1 
         }}>
           {/* Day Number and Day Name Row */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: scale(12), marginBottom: verticalScale(8) }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: scale(10), marginBottom: verticalScale(6) }}>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: moderateScale(36), fontWeight: '900', color: '#000', lineHeight: moderateScale(38) }}>
+              <Text style={{ fontSize: moderateScale(32), fontWeight: '900', color: '#000', lineHeight: moderateScale(34) }}>
                 {day}
               </Text>
-              <Text style={{ fontSize: moderateScale(16), color: '#888', fontWeight: '700', marginTop: -verticalScale(4) }}>
+              <Text style={{ fontSize: moderateScale(14), color: '#888', fontWeight: '700', marginTop: -verticalScale(4) }}>
                 Day
               </Text>
             </View>
-            <Text style={{ fontSize: moderateScale(24), color: "#000", fontWeight: "800", marginTop: verticalScale(4) }}>
+            <Text style={{ fontSize: moderateScale(22), color: "#000", fontWeight: "800", marginTop: verticalScale(2) }}>
               {getDayName()}
             </Text>
           </View>
 
-          {/* Time and Timezone Row */}
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: isSmallScreen ? scale(20) : scale(50) }}>
+          {/* Time and Timezone Row - Reduced sizes */}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: isSmallScreen ? scale(15) : scale(40) }}>
             {/* Large Time Display */}
             <View style={{ flex: 1.2 }}>
-              <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: verticalScale(4) }}>
+              <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: verticalScale(2) }}>
                 <Text style={{
-                  fontSize: isSmallScreen ? moderateScale(70) : moderateScale(90),
+                  fontSize: isSmallScreen ? moderateScale(60) : moderateScale(75),
                   fontWeight: "700",
                   color: "#000",
                   letterSpacing: -4,
-                  lineHeight: isSmallScreen ? moderateScale(70) : moderateScale(90),
+                  lineHeight: isSmallScreen ? moderateScale(60) : moderateScale(75),
                 }}>
                   {dayPart}
                 </Text>
                 <Text style={{
-                  fontSize: isSmallScreen ? moderateScale(70) : moderateScale(90),
+                  fontSize: isSmallScreen ? moderateScale(60) : moderateScale(75),
                   fontWeight: "700",
                   color: "#000",
                   marginHorizontal: -scale(8),
@@ -164,21 +172,21 @@ export default function Home() {
                   :
                 </Text>
                 <Text style={{
-                  fontSize: isSmallScreen ? moderateScale(70) : moderateScale(90),
+                  fontSize: isSmallScreen ? moderateScale(60) : moderateScale(75),
                   fontWeight: "700",
                   color: "#000",
                   letterSpacing: -4,
-                  lineHeight: isSmallScreen ? moderateScale(70) : moderateScale(90),
+                  lineHeight: isSmallScreen ? moderateScale(60) : moderateScale(75),
                 }}>
                   {timePart}
                 </Text>
               </View>
               <Text style={{
-                fontSize: isSmallScreen ? moderateScale(55) : moderateScale(70),
+                fontSize: isSmallScreen ? moderateScale(45) : moderateScale(58),
                 fontWeight: "900",
                 color: "#000",
                 letterSpacing: 2,
-                marginTop: isSmallScreen ? -moderateScale(15) : -moderateScale(20),
+                marginTop: isSmallScreen ? -moderateScale(12) : -moderateScale(16),
                 textTransform: "uppercase",
               }}>
                 {getMonth()}
@@ -186,83 +194,199 @@ export default function Home() {
             </View>
 
             {/* Timezone Column */}
-            {/* Timezone Column */}
-<View style={{ 
-  flex: 1,
-  paddingLeft: scale(30), // This moves everything including the line
-}}>
-  <View style={{
-    gap: isSmallScreen ? scale(16) : scale(24),
-    paddingLeft: scale(20), // This adds space between line and text
-    borderLeftWidth: 2,
-    borderLeftColor: "#000",
-    paddingTop: verticalScale(8),
-  }}>
-    <View>
-      <Text style={{ fontSize: moderateScale(18), fontWeight: "700", color: "#000", marginBottom: verticalScale(4) }}>
-        {getTimeInTimezone("America/New_York")}
-      </Text>
-      <Text style={{ fontSize: moderateScale(14), color: "#000", fontWeight: "400" }}>
-        New York
-      </Text>
-    </View>
-    <View>
-      <Text style={{ fontSize: moderateScale(18), fontWeight: "700", color: "#000", marginBottom: verticalScale(4) }}>
-        {getTimeInTimezone("Europe/London")}
-      </Text>
-      <Text style={{ fontSize: moderateScale(14), color: "#000", fontWeight: "400" }}>
-        United Kingdom
-      </Text>
-    </View>
-  </View>
-</View>
+            <View style={{ 
+              flex: 1,
+              paddingLeft: isSmallScreen ? scale(15) : scale(25),
+            }}>
+              <View style={{
+                gap: isSmallScreen ? scale(12) : scale(18),
+                paddingLeft: isSmallScreen ? scale(12) : scale(16),
+                borderLeftWidth: 2,
+                borderLeftColor: "#000",
+                paddingTop: verticalScale(4),
+              }}>
+                <View>
+                  <Text style={{ fontSize: moderateScale(16), fontWeight: "700", color: "#000", marginBottom: verticalScale(2) }}>
+                    {getTimeInTimezone("America/New_York")}
+                  </Text>
+                  <Text style={{ fontSize: moderateScale(12), color: "#000", fontWeight: "400" }}>
+                    New York
+                  </Text>
+                </View>
+                <View>
+                  <Text style={{ fontSize: moderateScale(16), fontWeight: "700", color: "#000", marginBottom: verticalScale(2) }}>
+                    {getTimeInTimezone("Europe/London")}
+                  </Text>
+                  <Text style={{ fontSize: moderateScale(12), color: "#000", fontWeight: "400" }}>
+                    United Kingdom
+                  </Text>
+                </View>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Add Habit Button */}
-        <View style={{ alignItems: 'center', marginTop: verticalScale(16), zIndex: 1 }}>
-          <TouchableOpacity
-            style={{
-              backgroundColor: '#2ecc71',
-              paddingHorizontal: scale(32),
-              paddingVertical: verticalScale(14),
-              borderRadius: moderateScale(24),
-              marginBottom: verticalScale(8),
-            }}
-            onPress={() => router.push('/habits/create')}
-          >
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: moderateScale(16) }}>
-              + Add Habit
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tasks Section */}
+        {/* Tasks Section - Increased space */}
         <View style={{
           flex: 1,
           marginHorizontal: 0,
           paddingHorizontal: scale(24),
-          paddingTop: verticalScale(28),
+          paddingTop: verticalScale(24),
           backgroundColor: "#FFF",
           borderTopLeftRadius: moderateScale(32),
           borderTopRightRadius: moderateScale(32),
-          marginTop: 0,
+          marginTop: verticalScale(6),
         }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: verticalScale(20) }}>
-            <Text style={{ fontSize: moderateScale(20), fontWeight: "700", color: "#000" }}>
-              Todays tasks
-            </Text>
-            <Text style={{
-              fontSize: moderateScale(14),
-              color: "#000",
-              fontWeight: "500",
-              backgroundColor: "#E8E8E8",
-              paddingHorizontal: scale(24),
-              paddingVertical: verticalScale(10),
-              borderRadius: moderateScale(24),
-            }}>
-              Reminders
-            </Text>
+          {/* Header with Filter Buttons and Dropdown */}
+          <View style={{ marginBottom: verticalScale(20) }}>
+            {/* Centered Title */}
+            <View style={{ alignItems: "center", marginBottom: verticalScale(16) }}>
+              <Text style={{ fontSize: moderateScale(24), fontWeight: "700", color: "#000" }}>
+                {filter === 'today' ? "Today's tasks" : "All tasks"}
+              </Text>
+            </View>
+
+            {/* Filter Buttons and Dropdown Row */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scale(12) }}>
+              {/* Three Dots Dropdown on the left */}
+              <View style={{ position: 'relative' }}>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#E8E8E8',
+                    borderRadius: moderateScale(24),
+                    padding: scale(10),
+                    width: scale(44),
+                    height: scale(44),
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+                  activeOpacity={0.7}
+                >
+                  {/* Three dots icon */}
+                  <View style={{ flexDirection: 'row', gap: scale(3.5) }}>
+                    <View style={{
+                      width: scale(4),
+                      height: scale(4),
+                      borderRadius: scale(2),
+                      backgroundColor: '#666',
+                    }} />
+                    <View style={{
+                      width: scale(4),
+                      height: scale(4),
+                      borderRadius: scale(2),
+                      backgroundColor: '#666',
+                    }} />
+                    <View style={{
+                      width: scale(4),
+                      height: scale(4),
+                      borderRadius: scale(2),
+                      backgroundColor: '#666',
+                    }} />
+                  </View>
+                </TouchableOpacity>
+
+                {/* Dropdown Menu */}
+                {isDropdownOpen && (
+                  <View style={{
+                    position: 'absolute',
+                    top: verticalScale(50),
+                    left: 0,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: moderateScale(16),
+                    minWidth: scale(180),
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 8,
+                    elevation: 8,
+                    zIndex: 1000,
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: '#E0E0E0',
+                  }}>
+                    {['Icons', 'List', 'Name', 'Grid View'].map((option, index, arr) => (
+                      <TouchableOpacity
+                        key={option}
+                        style={{
+                          paddingHorizontal: scale(16),
+                          paddingVertical: verticalScale(12),
+                          borderBottomWidth: index < arr.length - 1 ? 1 : 0,
+                          borderBottomColor: '#F0F0F0',
+                          backgroundColor: selectedDropdownOption === option ? '#F8F8F8' : 'transparent',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                        onPress={() => {
+                          setSelectedDropdownOption(option);
+                          setIsDropdownOpen(false);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{
+                          fontSize: moderateScale(14),
+                          color: '#333',
+                          fontWeight: selectedDropdownOption === option ? '600' : '400',
+                        }}>
+                          {option}
+                        </Text>
+                        {selectedDropdownOption === option && (
+                          <Text style={{
+                            fontSize: moderateScale(16),
+                            color: '#2ecc71',
+                          }}>
+                            ✓
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Filter Buttons on the right */}
+              <TouchableOpacity
+                style={{
+                  backgroundColor: filter === 'today' ? "#2ecc71" : "#E8E8E8",
+                  paddingHorizontal: scale(24),
+                  paddingVertical: verticalScale(12),
+                  borderRadius: moderateScale(24),
+                  minWidth: scale(100),
+                  alignItems: 'center',
+                }}
+                onPress={() => setFilter('today')}
+                activeOpacity={0.7}
+              >
+                <Text style={{
+                  fontSize: moderateScale(14),
+                  color: filter === 'today' ? "#FFF" : "#666",
+                  fontWeight: "600",
+                }}>
+                  Today
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: filter === 'all' ? "#2ecc71" : "#E8E8E8",
+                  paddingHorizontal: scale(24),
+                  paddingVertical: verticalScale(12),
+                  borderRadius: moderateScale(24),
+                  minWidth: scale(100),
+                  alignItems: 'center',
+                }}
+                onPress={() => setFilter('all')}
+                activeOpacity={0.7}
+              >
+                <Text style={{
+                  fontSize: moderateScale(14),
+                  color: filter === 'all' ? "#FFF" : "#666",
+                  fontWeight: "600",
+                }}>
+                  All
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView
@@ -272,7 +396,7 @@ export default function Home() {
           >
             {events.length === 0 ? (
               <Text style={{ color: '#888', textAlign: 'center', marginTop: verticalScale(16), fontSize: moderateScale(16) }}>
-                No tasks for today.
+                No tasks {filter === 'today' ? 'for today' : 'available'}.
               </Text>
             ) : (
               events.map((event) => {
@@ -290,40 +414,75 @@ export default function Home() {
                     key={event.id}
                     style={{
                       backgroundColor: event.color || '#B8A8D4',
-                      borderRadius: moderateScale(28),
-                      padding: scale(28),
-                      marginBottom: verticalScale(30),
+                      borderRadius: moderateScale(24),
+                      padding: scale(24),
+                      marginBottom: verticalScale(16),
                     }}
                   >
-                    <Text style={{ fontSize: moderateScale(22), fontWeight: "700", color: "#000", marginBottom: verticalScale(24) }}>
+                    <Text style={{ 
+                      fontSize: moderateScale(20), 
+                      fontWeight: "700", 
+                      color: "#000", 
+                      marginBottom: verticalScale(20),
+                      flexShrink: 1,
+                    }}>
                       {event.title}
                     </Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: moderateScale(18), fontWeight: "700", color: "#000", marginBottom: verticalScale(4) }}>
+                    <View style={{ 
+                      flexDirection: "row", 
+                      alignItems: "center", 
+                      justifyContent: "space-between",
+                      gap: scale(8),
+                    }}>
+                      <View style={{ flex: 1, minWidth: scale(70) }}>
+                        <Text style={{ 
+                          fontSize: moderateScale(17), 
+                          fontWeight: "700", 
+                          color: "#000", 
+                          marginBottom: verticalScale(4) 
+                        }}>
                           {formatTime(start)}
                         </Text>
-                        <Text style={{ fontSize: moderateScale(13), color: "#000", fontWeight: "500" }}>
+                        <Text style={{ 
+                          fontSize: moderateScale(12), 
+                          color: "#333", 
+                          fontWeight: "500" 
+                        }}>
                           Start
                         </Text>
                       </View>
                       <View style={{
                         backgroundColor: "#5A5A5A",
-                        paddingHorizontal: scale(18),
+                        paddingHorizontal: scale(14),
                         paddingVertical: verticalScale(10),
                         borderRadius: moderateScale(14),
-                        minWidth: scale(80),
                         alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
                       }}>
-                        <Text style={{ fontSize: moderateScale(14), fontWeight: "600", color: "#FFF" }}>
+                        <Text style={{ 
+                          fontSize: moderateScale(13), 
+                          fontWeight: "600", 
+                          color: "#FFF",
+                          textAlign: "center",
+                        }}>
                           {durationStr}
                         </Text>
                       </View>
-                      <View style={{ flex: 1, alignItems: "flex-end" }}>
-                        <Text style={{ fontSize: moderateScale(18), fontWeight: "700", color: "#000", marginBottom: verticalScale(4) }}>
+                      <View style={{ flex: 1, alignItems: "flex-end", minWidth: scale(70) }}>
+                        <Text style={{ 
+                          fontSize: moderateScale(17), 
+                          fontWeight: "700", 
+                          color: "#000", 
+                          marginBottom: verticalScale(4) 
+                        }}>
                           {formatTime(end)}
                         </Text>
-                        <Text style={{ fontSize: moderateScale(13), color: "#000", fontWeight: "500" }}>
+                        <Text style={{ 
+                          fontSize: moderateScale(12), 
+                          color: "#333", 
+                          fontWeight: "500" 
+                        }}>
                           End
                         </Text>
                       </View>
