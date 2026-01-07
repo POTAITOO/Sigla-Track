@@ -1,9 +1,11 @@
 import { Stack, useRouter } from "expo-router";
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import BottomNav from "../components/BottomNav";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Productivity() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const NAVBAR_HEIGHT = 72; // Adjust if your navbar is taller/shorter
 
   return (
     <>
@@ -39,13 +41,13 @@ export default function Productivity() {
             </View>
           </View>
           <Text style={styles.headerSubtitle}>
-            Prioritise and set deadlines so you don't miss anything important
+            Prioritise and set deadlines so you don&apos;t miss anything important
           </Text>
         </View>
 
         <ScrollView 
           style={styles.content} 
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + NAVBAR_HEIGHT }]}
           showsVerticalScrollIndicator={false}
         >
           {/* Horizontal ScrollView for Cards */}
@@ -76,7 +78,7 @@ export default function Productivity() {
               {/* Badge */}
               <View style={styles.badge}>
                 <Text style={styles.badgeIcon}>✱</Text>
-                <Text style={styles.badgeText}>You're productive than 89% teams</Text>
+                <Text style={styles.badgeText}>You&apos;re productive than 89% teams</Text>
               </View>
             </View>
 
@@ -116,14 +118,12 @@ export default function Productivity() {
             onPress={() => router.push("/home")}
             activeOpacity={0.9}
           >
-            <Text style={styles.ctaText}>Let's get started!</Text>
+            <Text style={styles.ctaText}>Let&apos;s get started!</Text>
             <View style={styles.ctaArrow}>
               <Text style={styles.arrowIcon}>→</Text>
             </View>
           </TouchableOpacity>
         </ScrollView>
-
-        <BottomNav />
       </View>
     </>
   );

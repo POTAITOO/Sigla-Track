@@ -2,13 +2,13 @@ import { Stack, useRouter } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import {
-    Dimensions,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { auth } from "../firebaseConfig.js";
 
@@ -78,12 +78,12 @@ export default function Index() {
       flatListRef.current?.scrollToIndex({ index: nextPage, animated: true });
       setCurrentPage(nextPage);
     } else {
-      router.push("/login");
+      router.push("/auth/login");
     }
   };
 
   const handleSkip = () => {
-    router.push("/login");
+    router.push("/auth/login");
   };
 
   const handleBack = () => {
@@ -167,43 +167,20 @@ export default function Index() {
       </View>
     );
   };
-
-  if (loading) {
+//ito ung sa landing page
+ if (loading) {
     return (
       <View style={styles.container}>
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
+  // TEMP: Skip login and go directly to /tabs/home for development
+ /* if (!loading) {
+    router.replace('/tabs/home');
+    return null;
+  }*/
 
-  if (user) {
-    return (
-      <>
-        <Stack.Screen options={{ headerShown: false }} />
-        <View style={styles.loggedInContainer}>
-          <View style={styles.userContainer}>
-            <View style={styles.header2}>
-              <Text style={styles.title}>SiglaTrack</Text>
-              <Text style={styles.subtitle}>Welcome back!</Text>
-            </View>
-
-            <View style={styles.profileCard}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {user.email?.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <Text style={styles.emailText}>{user.email}</Text>
-            </View>
-
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Text style={styles.logoutButtonText}>Logout</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </>
-    );
-  }
 
   return (
     <>
