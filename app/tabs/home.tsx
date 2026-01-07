@@ -1,64 +1,56 @@
-import { Stack } from "expo-router";
-import { useEffect, useState } from "react";
-import { ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { useAuth } from '@/context/authContext';
+import { eventServices } from '@/services/eventServices';
+import { Stack, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Mock task data
-const MOCK_TASKS = [
-  {
-    id: 1,
-    title: "You Have A Meeting",
-    startTime: "3:00 PM",
-    endTime: "3:30 PM",
-    duration: "30 Min",
-    color: "#D4A375",
-  },
-  {
-    id: 2,
-    title: "Call Migo for Update",
-    startTime: "5:00 PM",
-    endTime: "5:30 PM",
-    duration: "30 Min",
-    color: "#A8B5C0",
-  },
-  {
-    id: 3,
-    title: "Team Standup",
-    startTime: "9:00 AM",
-    endTime: "9:15 AM",
-    duration: "15 Min",
-    color: "#B8A8D4",
-  },
-  {
-    id: 4,
-    title: "Review Project Proposal",
-    startTime: "1:00 PM",
-    endTime: "2:00 PM",
-    duration: "1 Hour",
-    color: "#A8D4C0",
-  },
-  {
-    id: 5,
-    title: "Coffee Break",
-    startTime: "10:30 AM",
-    endTime: "11:00 AM",
-    duration: "30 Min",
-    color: "#D4C0A8",
-  },
-];
-
 export default function Home() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [events, setEvents] = useState<any[]>([]);
   const insets = useSafeAreaInsets();
   const NAVBAR_HEIGHT = 72;
+
+  // Move styles.header inside the component so it can access insets
+  const dynamicStyles = {
+    ...styles,
+    header: {
+      ...styles.header,
+      paddingTop: insets.top + 16,
+    },
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000); // Update every minute
-
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch today's events for the user
+  const fetchEvents = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const allEvents = await eventServices.getUserEvents(user.uid);
+      // Filter for today's events
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+      const todaysEvents = allEvents.filter((event: any) => {
+        const eventStart = new Date(event.startDate);
+        return eventStart >= startOfDay && eventStart <= endOfDay;
+      });
+      setEvents(todaysEvents);
+    } catch (error) {
+      console.error('Failed to fetch events:', error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   const getDayName = () => {
     const days = [
@@ -121,12 +113,20 @@ export default function Home() {
         <View style={styles.gradientCircle2} />
 
         {/* Header */}
-        <View style={styles.header} />
+        <View style={dynamicStyles.header}>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#222' }}>Welcome!</Text>
+        </View>
 
         <View style={styles.content}>
           {/* Date Card */}
           <View style={styles.dateCard}>
-            <Text style={styles.dayLabel}>{getDayName()}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12 }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 36, fontWeight: '900', color: '#000', lineHeight: 38 }}>{day}</Text>
+                <Text style={{ fontSize: 16, color: '#888', fontWeight: '700', marginTop: -4 }}>Day</Text>
+              </View>
+              <Text style={styles.dayLabel}>{getDayName()}</Text>
+            </View>
             <View style={styles.dateRow}>
               <View style={styles.dateLeft}>
                 <View style={styles.dateNumberRow}>
@@ -154,6 +154,22 @@ export default function Home() {
           </View>
         </View>
 
+        {/* Habit Creation Button */}
+        <View style={{ alignItems: 'center', marginTop: 16 }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#2ecc71',
+              paddingHorizontal: 32,
+              paddingVertical: 14,
+              borderRadius: 24,
+              marginBottom: 8,
+            }}
+            onPress={() => router.push('/habits/create')}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>+ Add Habit</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Tasks Section */}
         <View style={styles.tasksContainer}>
           <View style={styles.sectionHeader}>
@@ -166,27 +182,39 @@ export default function Home() {
             contentContainerStyle={[styles.tasksScrollContent, { paddingBottom: insets.bottom + NAVBAR_HEIGHT }]}
             showsVerticalScrollIndicator={false}
           >
-            {MOCK_TASKS.map((task) => (
-              <View
-                key={task.id}
-                style={[styles.taskCard, { backgroundColor: task.color }]}
-              >
-                <Text style={styles.taskTitle}>{task.title}</Text>
-                <View style={styles.taskDetails}>
-                  <View style={styles.taskTime}>
-                    <Text style={styles.taskTimeLabel}>{task.startTime}</Text>
-                    <Text style={styles.taskTimeSubLabel}>Start</Text>
+            {events.length === 0 ? (
+              <Text style={{ color: '#888', textAlign: 'center', marginTop: 16 }}>No tasks for today.</Text>
+            ) : (
+              events.map((event) => {
+                const start = new Date(event.startDate);
+                const end = new Date(event.endDate);
+                const formatTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const durationMs = end.getTime() - start.getTime();
+                const durationMin = Math.round(durationMs / 60000);
+                const durationStr = durationMin >= 60 ? `${Math.floor(durationMin / 60)} Hour${durationMin >= 120 ? 's' : ''}${durationMin % 60 ? ' ' + (durationMin % 60) + ' Min' : ''}` : `${durationMin} Min`;
+                return (
+                  <View
+                    key={event.id}
+                    style={[styles.taskCard, { backgroundColor: event.color || '#B8A8D4' }]}
+                  >
+                    <Text style={styles.taskTitle}>{event.title}</Text>
+                    <View style={styles.taskDetails}>
+                      <View style={styles.taskTime}>
+                        <Text style={styles.taskTimeLabel}>{formatTime(start)}</Text>
+                        <Text style={styles.taskTimeSubLabel}>Start</Text>
+                      </View>
+                      <View style={styles.durationBadge}>
+                        <Text style={styles.durationText}>{durationStr}</Text>
+                      </View>
+                      <View style={styles.taskTimeEnd}>
+                        <Text style={styles.taskTimeLabel}>{formatTime(end)}</Text>
+                        <Text style={styles.taskTimeSubLabel}>End</Text>
+                      </View>
+                    </View>
                   </View>
-                  <View style={styles.durationBadge}>
-                    <Text style={styles.durationText}>{task.duration}</Text>
-                  </View>
-                  <View style={styles.taskTimeEnd}>
-                    <Text style={styles.taskTimeLabel}>{task.endTime}</Text>
-                    <Text style={styles.taskTimeSubLabel}>End</Text>
-                  </View>
-                </View>
-              </View>
-            ))}
+                );
+              })
+            )}
           </ScrollView>
         </View>
       </View>
@@ -223,7 +251,7 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   header: {
-    paddingTop: 40,
+    paddingTop: 16,
     paddingHorizontal: 20,
     paddingBottom: 16,
     zIndex: 1,

@@ -2,11 +2,11 @@ import { Stack, useRouter } from 'expo-router';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../../firebaseConfig.js';
@@ -17,6 +17,12 @@ export default function Profile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const NAVBAR_HEIGHT = 72;
+
+  // Dynamic header style to access insets
+  const headerStyle = {
+    ...styles.header,
+    paddingTop: insets.top + 16,
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -38,7 +44,7 @@ export default function Profile() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + NAVBAR_HEIGHT }}>
-        <View style={styles.header}>
+        <View style={headerStyle}>
           <Text style={styles.title}>Profile</Text>
         </View>
 
@@ -91,7 +97,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   header: {
-    paddingTop: 60,
     paddingBottom: 32,
     alignItems: 'center',
   },

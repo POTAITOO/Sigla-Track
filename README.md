@@ -173,7 +173,17 @@ firebase deploy --only functions
 
 ### Phase 5 — Core Features (Month 2–3)
 - Task creation  
-- Habit tracking  
+    - Task creation (Events)
+      - Fully implemented: create, edit, and delete events/tasks
+      - Fields: title, description, date, time, location, category, color, reminder
+      - Example categories: work, personal, meeting, deadline, other
+      - Color labels and reminders supported
+    - Habit tracking
+      - Fully implemented: create, edit, delete, and log habits
+      - Fields: title, description, frequency (daily/weekly/monthly), days of week, category, color, reminder
+      - Example categories: health, fitness, learning, productivity, other
+      - Visual streaks and completion logs
+      - Color labels and reminders supported
 - Calendar  
 - Reminders  
 
