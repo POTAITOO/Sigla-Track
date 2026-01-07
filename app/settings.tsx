@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import BottomNav from "../components/BottomNav";
+
 
 const getResponsiveDimensions = () => {
   const { width, height } = Dimensions.get('window');
@@ -219,8 +219,7 @@ export default function Profile() {
 
         </ScrollView>
 
-        {/* Bottom Navigation */}
-        <BottomNav />
+       
       </View>
     </>
   );

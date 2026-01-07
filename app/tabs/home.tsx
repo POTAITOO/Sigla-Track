@@ -1,7 +1,14 @@
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Dimensions, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Responsive scaling functions
+const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
+const verticalScale = (size: number) => (SCREEN_HEIGHT / 812) * size;
+const moderateScale = (size: number, factor = 0.5) => size + (scale(size) - size) * factor;
 
 // Mock task data
 const MOCK_TASKS = [
@@ -49,6 +56,7 @@ const MOCK_TASKS = [
 
 export default function Home() {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
   const insets = useSafeAreaInsets();
   const NAVBAR_HEIGHT = 72;
 
@@ -57,7 +65,14 @@ export default function Home() {
       setCurrentTime(new Date());
     }, 60000); // Update every minute
 
-    return () => clearInterval(timer);
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+
+    return () => {
+      clearInterval(timer);
+      subscription?.remove();
+    };
   }, []);
 
   const getDayName = () => {
@@ -111,43 +126,92 @@ export default function Home() {
   const { day, time } = getFormattedDate();
   const [dayPart, timePart] = time.split(":");
 
+  const isSmallScreen = dimensions.width < 375;
+  const isLargeScreen = dimensions.width > 428;
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="light-content" backgroundColor="#E0E0E0" />
       <View style={styles.container}>
         {/* Gradient Background Circles */}
-        <View style={styles.gradientCircle1} />
-        <View style={styles.gradientCircle2} />
+        <View style={[
+          styles.gradientCircle1,
+          {
+            width: scale(300),
+            height: scale(300),
+            borderRadius: scale(150),
+            top: -scale(50),
+            right: -scale(50),
+          }
+        ]} />
+        <View style={[
+          styles.gradientCircle2,
+          {
+            width: scale(250),
+            height: scale(250),
+            borderRadius: scale(125),
+            bottom: verticalScale(200),
+            left: -scale(50),
+          }
+        ]} />
 
         {/* Header */}
-        <View style={styles.header} />
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, verticalScale(40)) }]} />
 
         <View style={styles.content}>
           {/* Date Card */}
           <View style={styles.dateCard}>
-            <Text style={styles.dayLabel}>{getDayName()}</Text>
-            <View style={styles.dateRow}>
+            <Text style={[styles.dayLabel, { fontSize: moderateScale(24) }]}>
+              {getDayName()}
+            </Text>
+            <View style={[styles.dateRow, { gap: isSmallScreen ? scale(20) : scale(50) }]}>
               <View style={styles.dateLeft}>
                 <View style={styles.dateNumberRow}>
-                  <Text style={styles.dateNumber}>{dayPart}</Text>
-                  <Text style={styles.dateSeparator}>:</Text>
-                  <Text style={styles.dateNumber}>{timePart}</Text>
+                  <Text style={[styles.dateNumber, { 
+                    fontSize: isSmallScreen ? moderateScale(70) : moderateScale(90),
+                    lineHeight: isSmallScreen ? moderateScale(70) : moderateScale(90),
+                  }]}>
+                    {dayPart}
+                  </Text>
+                  <Text style={[styles.dateSeparator, { 
+                    fontSize: isSmallScreen ? moderateScale(70) : moderateScale(90),
+                  }]}>
+                    :
+                  </Text>
+                  <Text style={[styles.dateNumber, { 
+                    fontSize: isSmallScreen ? moderateScale(70) : moderateScale(90),
+                    lineHeight: isSmallScreen ? moderateScale(70) : moderateScale(90),
+                  }]}>
+                    {timePart}
+                  </Text>
                 </View>
-                <Text style={styles.monthLabel}>{getMonth()}</Text>
+                <Text style={[styles.monthLabel, { 
+                  fontSize: isSmallScreen ? moderateScale(55) : moderateScale(70),
+                  marginTop: isSmallScreen ? -moderateScale(15) : -moderateScale(20),
+                }]}>
+                  {getMonth()}
+                </Text>
               </View>
-              <View style={styles.timeColumn}>
+              <View style={[styles.timeColumn, { 
+                paddingLeft: scale(28),
+                gap: isSmallScreen ? scale(16) : scale(24),
+              }]}>
                 <View style={styles.timeBlock}>
-                  <Text style={styles.timeLabel}>
+                  <Text style={[styles.timeLabel, { fontSize: moderateScale(18) }]}>
                     {getTimeInTimezone("America/New_York")}
                   </Text>
-                  <Text style={styles.timeSubLabel}>New York</Text>
+                  <Text style={[styles.timeSubLabel, { fontSize: moderateScale(14) }]}>
+                    New York
+                  </Text>
                 </View>
                 <View style={styles.timeBlock}>
-                  <Text style={styles.timeLabel}>
+                  <Text style={[styles.timeLabel, { fontSize: moderateScale(18) }]}>
                     {getTimeInTimezone("Europe/London")}
                   </Text>
-                  <Text style={styles.timeSubLabel}>United Kingdom</Text>
+                  <Text style={[styles.timeSubLabel, { fontSize: moderateScale(14) }]}>
+                    United Kingdom
+                  </Text>
                 </View>
               </View>
             </View>
@@ -155,34 +219,76 @@ export default function Home() {
         </View>
 
         {/* Tasks Section */}
-        <View style={styles.tasksContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Todays tasks</Text>
-            <Text style={styles.sectionLink}>Reminders</Text>
+        <View style={[styles.tasksContainer, { 
+          paddingHorizontal: scale(24),
+          paddingTop: verticalScale(28),
+          borderTopLeftRadius: moderateScale(32),
+          borderTopRightRadius: moderateScale(32),
+        }]}>
+          <View style={[styles.sectionHeader, { marginBottom: verticalScale(20) }]}>
+            <Text style={[styles.sectionTitle, { fontSize: moderateScale(20) }]}>
+              Todays tasks
+            </Text>
+            <Text style={[styles.sectionLink, { 
+              fontSize: moderateScale(14),
+              paddingHorizontal: scale(24),
+              paddingVertical: verticalScale(10),
+              borderRadius: moderateScale(24),
+            }]}>
+              Reminders
+            </Text>
           </View>
 
           <ScrollView
             style={styles.tasksScrollView}
-            contentContainerStyle={[styles.tasksScrollContent, { paddingBottom: insets.bottom + NAVBAR_HEIGHT }]}
+            contentContainerStyle={[
+              styles.tasksScrollContent, 
+              { paddingBottom: insets.bottom + NAVBAR_HEIGHT + verticalScale(20) }
+            ]}
             showsVerticalScrollIndicator={false}
           >
             {MOCK_TASKS.map((task) => (
               <View
                 key={task.id}
-                style={[styles.taskCard, { backgroundColor: task.color }]}
+                style={[styles.taskCard, { 
+                  backgroundColor: task.color,
+                  borderRadius: moderateScale(28),
+                  padding: scale(28),
+                  marginBottom: verticalScale(20),
+                }]}
               >
-                <Text style={styles.taskTitle}>{task.title}</Text>
+                <Text style={[styles.taskTitle, { 
+                  fontSize: moderateScale(22),
+                  marginBottom: verticalScale(24),
+                }]}>
+                  {task.title}
+                </Text>
                 <View style={styles.taskDetails}>
                   <View style={styles.taskTime}>
-                    <Text style={styles.taskTimeLabel}>{task.startTime}</Text>
-                    <Text style={styles.taskTimeSubLabel}>Start</Text>
+                    <Text style={[styles.taskTimeLabel, { fontSize: moderateScale(18) }]}>
+                      {task.startTime}
+                    </Text>
+                    <Text style={[styles.taskTimeSubLabel, { fontSize: moderateScale(13) }]}>
+                      Start
+                    </Text>
                   </View>
-                  <View style={styles.durationBadge}>
-                    <Text style={styles.durationText}>{task.duration}</Text>
+                  <View style={[styles.durationBadge, {
+                    paddingHorizontal: scale(18),
+                    paddingVertical: verticalScale(10),
+                    borderRadius: moderateScale(14),
+                    minWidth: scale(80),
+                  }]}>
+                    <Text style={[styles.durationText, { fontSize: moderateScale(14) }]}>
+                      {task.duration}
+                    </Text>
                   </View>
                   <View style={styles.taskTimeEnd}>
-                    <Text style={styles.taskTimeLabel}>{task.endTime}</Text>
-                    <Text style={styles.taskTimeSubLabel}>End</Text>
+                    <Text style={[styles.taskTimeLabel, { fontSize: moderateScale(18) }]}>
+                      {task.endTime}
+                    </Text>
+                    <Text style={[styles.taskTimeSubLabel, { fontSize: moderateScale(13) }]}>
+                      End
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -202,39 +308,28 @@ const styles = StyleSheet.create({
   },
   gradientCircle1: {
     position: "absolute",
-    width: 300,
-    height: 300,
-    borderRadius: 150,
     backgroundColor: "#E9D5FF",
     opacity: 0.5,
-    top: -50,
-    right: -50,
     zIndex: 0,
   },
   gradientCircle2: {
     position: "absolute",
-    width: 250,
-    height: 250,
-    borderRadius: 125,
     backgroundColor: "#D4FC79",
     opacity: 0.4,
-    bottom: 200,
-    left: -50,
     zIndex: 0,
   },
   header: {
-    paddingTop: 40,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: scale(20),
+    paddingBottom: verticalScale(16),
     zIndex: 1,
   },
   content: {
-    paddingBottom: 20,
+    paddingBottom: verticalScale(20),
     paddingTop: 0,
     zIndex: 1,
   },
   dateCard: {
-    marginHorizontal: 20,
+    marginHorizontal: scale(20),
     marginTop: 0,
     marginBottom: 0,
     padding: 0,
@@ -242,7 +337,6 @@ const styles = StyleSheet.create({
     shadowColor: "transparent",
   },
   dayLabel: {
-    fontSize: 24,
     color: "#000000",
     marginBottom: 0,
     fontWeight: "800",
@@ -251,7 +345,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: 50,
     marginTop: 0,
   },
   dateLeft: {
@@ -261,49 +354,40 @@ const styles = StyleSheet.create({
   dateNumberRow: {
     flexDirection: "row",
     alignItems: "baseline",
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   dateNumber: {
-    fontSize: 90,
     fontWeight: "700",
     color: "#000000",
     letterSpacing: -4,
-    lineHeight: 90,
   },
   dateSeparator: {
-    fontSize: 90,
     fontWeight: "700",
     color: "#000000",
-    marginHorizontal: -8,
+    marginHorizontal: -scale(8),
   },
   monthLabel: {
-    fontSize: 70,
     fontWeight: "900",
     color: "#000000",
     letterSpacing: 2,
-    marginTop: -20,
     textTransform: "uppercase",
   },
   timeColumn: {
-    gap: 24,
     justifyContent: "flex-start",
-    paddingLeft: 28,
     borderLeftWidth: 2,
     borderLeftColor: "#000000",
     flex: 1,
-    paddingTop: 8,
+    paddingTop: verticalScale(8),
   },
   timeBlock: {
     alignItems: "flex-start",
   },
   timeLabel: {
-    fontSize: 18,
     fontWeight: "700",
     color: "#000000",
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   timeSubLabel: {
-    fontSize: 14,
     color: "#000000",
     fontWeight: "400",
   },
@@ -311,30 +395,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 20,
     fontWeight: "700",
     color: "#000000",
   },
   sectionLink: {
-    fontSize: 14,
     color: "#000000",
     fontWeight: "500",
     backgroundColor: "#E8E8E8",
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 24,
   },
   tasksContainer: {
     flex: 1,
     marginHorizontal: 0,
-    paddingHorizontal: 24,
-    paddingTop: 28,
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
     marginTop: 0,
   },
   tasksScrollView: {
@@ -344,16 +418,11 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   taskCard: {
-    borderRadius: 28,
-    padding: 28,
-    marginBottom: 20,
     shadowColor: "transparent",
   },
   taskTitle: {
-    fontSize: 22,
     fontWeight: "700",
     color: "#000000",
-    marginBottom: 24,
   },
   taskDetails: {
     flexDirection: "row",
@@ -368,26 +437,19 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   taskTimeLabel: {
-    fontSize: 18,
     fontWeight: "700",
     color: "#000000",
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   taskTimeSubLabel: {
-    fontSize: 13,
     color: "#000000",
     fontWeight: "500",
   },
   durationBadge: {
     backgroundColor: "#5A5A5A",
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 14,
-    minWidth: 80,
     alignItems: "center",
   },
   durationText: {
-    fontSize: 14,
     fontWeight: "600",
     color: "#FFFFFF",
   },
