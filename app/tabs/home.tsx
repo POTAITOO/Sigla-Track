@@ -2,7 +2,7 @@ import { useAuth } from '@/context/authContext';
 import { eventServices } from '@/services/eventServices';
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Home() {
@@ -10,6 +10,7 @@ export default function Home() {
   const { user } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
   const NAVBAR_HEIGHT = 72;
 
@@ -50,6 +51,11 @@ export default function Home() {
 
   useEffect(() => {
     fetchEvents();
+  }, [fetchEvents]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchEvents().finally(() => setRefreshing(false));
   }, [fetchEvents]);
 
   const getDayName = () => {
@@ -106,8 +112,14 @@ export default function Home() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar barStyle="light-content" backgroundColor="#E0E0E0" />
-      <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: insets.bottom + NAVBAR_HEIGHT }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />
+        }
+      >
         {/* Gradient Background Circles */}
         <View style={styles.gradientCircle1} />
         <View style={styles.gradientCircle2} />
@@ -217,7 +229,7 @@ export default function Home() {
             )}
           </ScrollView>
         </View>
-      </View>
+      </ScrollView>
     </>
   );
 }

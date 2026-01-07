@@ -6,6 +6,7 @@ import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -45,6 +46,7 @@ export default function Schedule() {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [showYearPicker, setShowYearPicker] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -204,11 +206,22 @@ export default function Schedule() {
 
   const isToday = (date: Date) => isSameDay(date, today);
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchAllEvents().finally(() => setRefreshing(false));
+  }, [fetchAllEvents]);
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: insets.bottom + NAVBAR_HEIGHT }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />
+        }
+      >
         {/* Header with Month/Year and Navigation */}
         <View style={headerStyle}>
           <TouchableOpacity
@@ -436,7 +449,7 @@ export default function Schedule() {
             );
           })}
         </ScrollView>
-      </View>
+      </ScrollView>
     </>
   );
 }
