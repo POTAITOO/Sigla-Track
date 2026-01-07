@@ -1,7 +1,7 @@
 import { useAuth } from '@/context/authContext';
 import { habitServices } from '@/services/habitServices';
 import { HabitCreateInput } from '@/types/event';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -41,14 +41,14 @@ export default function CreateHabitScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
-  const handleStartDateChange = (event: any, selectedDate?: Date) => {
+  const handleStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (selectedDate) {
       setStartDate(selectedDate);
     }
     setShowStartPicker(false);
   };
 
-  const handleEndDateChange = (event: any, selectedDate?: Date) => {
+  const handleEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (selectedDate) {
       setEndDate(selectedDate);
     }
