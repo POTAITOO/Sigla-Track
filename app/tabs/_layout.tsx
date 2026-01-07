@@ -1,74 +1,73 @@
+
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView as RNSafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-
-// Define nav items, omitting 'create' for now
+// Only real tabs, no 'create'
 const navItems = [
   { name: 'Home', icon: 'home' },
   { name: 'Schedule', icon: 'calendar' },
-  { name: 'Create', icon: 'add' },
   { name: 'Productivity', icon: 'bar-chart' },
   { name: 'Profile', icon: 'person' },
 ];
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  // Insert the create tab in the center
-  const tabOrder = [0, 1, 'create', 2, 3];
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { paddingBottom: insets.bottom }]}> 
-      <View style={styles.navBar}>
-        {tabOrder.map((tabIdx, idx) => {
-          if (tabIdx === 'create') {
-            // Center create tab
-            return (
+    <RNSafeAreaView edges={['bottom']} style={{ backgroundColor: '#1F2937' }}>
+      <View style={[styles.navBar, { paddingBottom: Math.max(insets.bottom, 8) }]}> 
+        {state.routes.map((route, index) => {
+          // Insert the floating + button after the second tab (index 1)
+          if (index === 2) {
+            return [
+              // Floating + button
               <TouchableOpacity
                 key="create"
                 accessibilityRole="button"
-                onPress={() => navigation.navigate('events/create')}
-                style={styles.createTab}
+                onPress={() => router.push('/events/create')}
+                style={[
+                  styles.createTab,
+                  { marginBottom: insets.bottom > 0 ? insets.bottom : 8 },
+                ]}
                 activeOpacity={0.8}
               >
                 <Ionicons name="add" size={28} color="#1F2937" />
-              </TouchableOpacity>
-            );
+              </TouchableOpacity>,
+              // The actual tab
+              <TabButton key={route.key} route={route} index={index} state={state} descriptors={descriptors} navigation={navigation} />
+            ];
           }
-          const route = state.routes[tabIdx as number];
-          const { options } = descriptors[route.key];
-          const label =
-            options.tabBarLabel !== undefined
-              ? options.tabBarLabel
-              : options.title !== undefined
-              ? options.title
-              : route.name;
-          const isActive = state.index === (tabIdx as number);
-          const iconName = navItems[tabIdx as number < 2 ? tabIdx as number : (tabIdx as number) + 1]?.icon || 'home';
           return (
-            <TouchableOpacity
-              key={route.key}
-              accessibilityRole="button"
-              accessibilityState={isActive ? { selected: true } : {}}
-              onPress={() => navigation.navigate(route.name)}
-              style={[styles.navItem, isActive && styles.navItemActive]}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={iconName as any}
-                size={24}
-                color={isActive ? '#60A5FA' : '#6B7280'}
-                style={[styles.icon, isActive && styles.iconActive]}
-              />
-              <Text style={[styles.label, isActive && styles.labelActive]}>
-                {typeof label === "string" ? label : route.name}
-              </Text>
-            </TouchableOpacity>
+            <TabButton key={route.key} route={route} index={index} state={state} descriptors={descriptors} navigation={navigation} />
           );
         })}
       </View>
-    </SafeAreaView>
+    </RNSafeAreaView>
+  );
+}
+
+function TabButton({ route, index, state, descriptors, navigation }: any) {
+  const isActive = state.index === index;
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityState={isActive ? { selected: true } : {}}
+      onPress={() => navigation.navigate(route.name)}
+      style={[styles.navItem, isActive && styles.navItemActive]}
+      activeOpacity={0.7}
+    >
+      <Ionicons
+        name={((navItems[index]?.icon ?? 'home') as any)}
+        size={24}
+        color={isActive ? '#60A5FA' : '#6B7280'}
+        style={[styles.icon, isActive && styles.iconActive]}
+      />
+      <Text style={[styles.label, isActive && styles.labelActive]}>
+        {descriptors[route.key]?.options.title ?? route.name}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -116,13 +115,13 @@ const styles = StyleSheet.create({
   navItem: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
     paddingVertical: 6,
     paddingHorizontal: 2,
     borderRadius: 12,
     backgroundColor: 'transparent',
     minHeight: 56,
     justifyContent: 'flex-end',
+    marginHorizontal: 2,
   },
     createTab: {
       width: 64,
@@ -132,7 +131,7 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       justifyContent: 'center',
       marginHorizontal: 4,
-      marginTop: -40, // Float higher above navbar
+      marginTop: -20, // Float higher above navbar
       position: 'relative',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },

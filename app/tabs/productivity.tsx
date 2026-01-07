@@ -7,6 +7,12 @@ export default function Productivity() {
   const insets = useSafeAreaInsets();
   const NAVBAR_HEIGHT = 72; // Adjust if your navbar is taller/shorter
 
+  // Dynamic header style to access insets
+  const headerStyle = {
+    ...styles.header,
+    paddingTop: insets.top + 16,
+  };
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -17,7 +23,7 @@ export default function Productivity() {
         <View style={styles.gradientCircle2} />
 
         {/* Header */}
-        <View style={styles.header}>
+        <View style={headerStyle}>
           <View style={styles.headerTop}>
             <View style={styles.titleSection}>
               <View style={styles.titleRow}>
@@ -158,7 +164,6 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   header: {
-    paddingTop: 80,
     paddingHorizontal: 16,
     paddingBottom: 20,
     zIndex: 1,

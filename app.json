@@ -10,13 +10,15 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "scheme": "siglatrack",
     "android": {
       "package": "com.malupait.siglatrack",
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "expo-router",
-      "expo-calendar"
+      "expo-calendar",
+      "@react-native-firebase/app"
     ]
   }
 }
