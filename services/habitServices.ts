@@ -1,21 +1,31 @@
 import { db } from '@/firebaseConfig';
 import { Habit, HabitCreateInput, HabitLog } from '@/types/event';
+import { getAuth } from 'firebase/auth';
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDocs,
-    orderBy,
-    query,
-    updateDoc,
-    where,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  updateDoc,
+  where,
 } from 'firebase/firestore';
 
 const HABITS_COLLECTION = 'habits';
 const HABIT_LOGS_COLLECTION = 'habitLogs';
 
 export const habitServices = {
+    /**
+     * Get the current authenticated user's UID
+     */
+    getCurrentUserId(): string {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+      return user.uid;
+    },
   /**
    * Create a new habit
    */
@@ -213,9 +223,12 @@ export const habitServices = {
    */
   async getHabitLogs(habitId: string, limit: number = 30): Promise<HabitLog[]> {
     try {
+      // Require userId for permission filtering
+      const userId = habitServices.getCurrentUserId();
       const q = query(
         collection(db, HABIT_LOGS_COLLECTION),
         where('habitId', '==', habitId),
+        where('userId', '==', userId),
         orderBy('completedAt', 'desc')
       );
 
@@ -239,9 +252,11 @@ export const habitServices = {
     endDate: Date
   ): Promise<HabitLog[]> {
     try {
+      const userId = habitServices.getCurrentUserId();
       const q = query(
         collection(db, HABIT_LOGS_COLLECTION),
         where('habitId', '==', habitId),
+        where('userId', '==', userId),
         where('completedAt', '>=', startDate.toISOString()),
         where('completedAt', '<=', endDate.toISOString()),
         orderBy('completedAt', 'desc')

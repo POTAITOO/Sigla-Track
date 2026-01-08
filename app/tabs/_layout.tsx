@@ -16,7 +16,7 @@ const navItems = [
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   return (
-    <RNSafeAreaView edges={['bottom']} style={{ backgroundColor: '#1F2937' }}>
+    <RNSafeAreaView edges={['bottom']} style={{ backgroundColor: '#232B39' }}>
       <View style={[styles.navBar, { paddingBottom: Math.max(insets.bottom, 8) }]}> 
         {state.routes.map((route, index) => {
           // Insert the floating + button after the second tab (index 1)
@@ -33,7 +33,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 ]}
                 activeOpacity={0.8}
               >
-                <Ionicons name="add" size={28} color="#1F2937" />
+                <Ionicons name="add" size={28} color="#fff" />
               </TouchableOpacity>,
               // The actual tab
               <TabButton key={route.key} route={route} index={index} state={state} descriptors={descriptors} navigation={navigation} />
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   navBar: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: '#232B39',
     paddingVertical: 8,
     paddingHorizontal: 8,
     position: 'relative',
@@ -123,25 +123,23 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     marginHorizontal: 2,
   },
-    createTab: {
-      width: 64,
-      height: 64,
-      borderRadius: 18,
-      backgroundColor: '#fff',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginHorizontal: 4,
-      marginTop: -20, // Float higher above navbar
-      position: 'relative',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.10,
-      shadowRadius: 8,
-      elevation: 8,
-      borderWidth: 2,
-      borderColor: '#E5E7EB',
-      zIndex: 2,
-    },
+  createTab: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#232B39',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 4,
+    marginTop: -20, 
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.20,
+    shadowRadius: 12,
+    elevation: 12,
+    zIndex: 2,
+  },
   navItemActive: {
     backgroundColor: 'rgba(96, 165, 250, 0.1)',
   },
@@ -152,6 +150,7 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   label: {
+    borderTopWidth: 0,
     fontSize: 12,
     fontWeight: '500',
     color: '#6B7280',
@@ -168,6 +167,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#60A5FA',
     borderRadius: 2,
     display: 'none',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.10)',
   },
 
 });
