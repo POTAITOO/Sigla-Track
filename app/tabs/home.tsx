@@ -2,7 +2,7 @@ import { useAuth } from '@/context/authContext';
 import { eventServices } from '@/services/eventServices';
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Dimensions, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Dimensions, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -20,7 +20,7 @@ export default function Home() {
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
   const [filter, setFilter] = useState<'all' | 'today'>('today');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedDropdownOption, setSelectedDropdownOption] = useState('Option 1');
+  const [selectedDropdownOption, setSelectedDropdownOption] = useState('Icons');
   const insets = useSafeAreaInsets();
   const NAVBAR_HEIGHT = 72;
 
@@ -239,51 +239,42 @@ export default function Home() {
         }}>
           {/* Header with Filter Buttons and Dropdown */}
           <View style={{ marginBottom: verticalScale(20) }}>
-            {/* Centered Title */}
-            <View style={{ alignItems: "center", marginBottom: verticalScale(16) }}>
+            {/* Title and Filter Icon Row */}
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: verticalScale(16),
+              paddingHorizontal: scale(4),
+            }}>
               <Text style={{ fontSize: moderateScale(24), fontWeight: "700", color: "#000" }}>
                 {filter === 'today' ? "Today's tasks" : "All tasks"}
               </Text>
-            </View>
-
-            {/* Filter Buttons and Dropdown Row */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scale(12) }}>
-              {/* Three Dots Dropdown on the left */}
+              
+              {/* Filter Icon Button with Dropdown */}
               <View style={{ position: 'relative' }}>
                 <TouchableOpacity
                   style={{
-                    backgroundColor: '#E8E8E8',
-                    borderRadius: moderateScale(24),
-                    padding: scale(10),
+                    backgroundColor: '#F5F5F5',
+                    borderRadius: moderateScale(22),
                     width: scale(44),
                     height: scale(44),
                     justifyContent: 'center',
                     alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: '#E0E0E0',
                   }}
                   onPress={() => setIsDropdownOpen(!isDropdownOpen)}
                   activeOpacity={0.7}
                 >
-                  {/* Three dots icon */}
-                  <View style={{ flexDirection: 'row', gap: scale(3.5) }}>
-                    <View style={{
-                      width: scale(4),
-                      height: scale(4),
-                      borderRadius: scale(2),
-                      backgroundColor: '#666',
-                    }} />
-                    <View style={{
-                      width: scale(4),
-                      height: scale(4),
-                      borderRadius: scale(2),
-                      backgroundColor: '#666',
-                    }} />
-                    <View style={{
-                      width: scale(4),
-                      height: scale(4),
-                      borderRadius: scale(2),
-                      backgroundColor: '#666',
-                    }} />
-                  </View>
+                  <Image 
+                    source={require('@/assets/images/filter.png')}
+                    style={{
+                      width: scale(24),
+                      height: scale(24),
+                    }}
+                    resizeMode="contain"
+                  />
                 </TouchableOpacity>
 
                 {/* Dropdown Menu */}
@@ -291,7 +282,7 @@ export default function Home() {
                   <View style={{
                     position: 'absolute',
                     top: verticalScale(50),
-                    left: 0,
+                    right: 0,
                     backgroundColor: '#FFFFFF',
                     borderRadius: moderateScale(16),
                     minWidth: scale(180),
@@ -344,8 +335,10 @@ export default function Home() {
                   </View>
                 )}
               </View>
+            </View>
 
-              {/* Filter Buttons on the right */}
+            {/* Centered Filter Buttons */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scale(12) }}>
               <TouchableOpacity
                 style={{
                   backgroundColor: filter === 'today' ? "#2ecc71" : "#E8E8E8",
