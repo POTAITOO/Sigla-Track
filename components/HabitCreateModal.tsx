@@ -1,6 +1,7 @@
 import { useAuth } from '@/context/authContext';
 import { habitServices } from '@/services/habitServices';
-import { HabitCreateInput, HabitWithStatus } from '@/types/event';
+import { HabitCreateInput } from '@/types/event';
+import { HabitWithStatus } from '@/types/habitAnalytics';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useState } from 'react';
@@ -270,7 +271,7 @@ const HabitCreateModal = ({ visible, onDismiss, onSuccess, onError, habit }: Hab
           </View>
           {hasEndDate && (
             <>
-              <Button mode="outlined" onPress={() => setShowEndPicker(true)} style={{ marginBottom: 8 }} error={!!errors.endDate}>
+              <Button mode="outlined" onPress={() => setShowEndPicker(true)} style={{ marginBottom: 8 }}>
                 {endDate ? formatDate(endDate) : 'Select date'}
               </Button>
               {showEndPicker && (
