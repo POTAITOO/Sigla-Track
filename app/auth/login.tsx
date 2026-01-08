@@ -22,7 +22,13 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, trimmedEmail, password);
+      const cred = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+      // Create user profile in Firestore if not present
+      const { userServices } = await import("@/services/userServices");
+      await userServices.createUserProfile({
+        uid: cred.user.uid,
+        email: cred.user.email || trimmedEmail,
+      });
       router.replace("/tabs/home");
     } catch (err) {
       let errorCode = "unknown";

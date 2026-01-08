@@ -1,4 +1,5 @@
 
+import { UserPointsProvider } from '@/context/userPointsContext';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Tabs, router } from 'expo-router';
@@ -73,17 +74,19 @@ function TabButton({ route, index, state, descriptors, navigation }: any) {
 
 export default function TabLayout() {
   return (
-    <View style={{ flex: 1 }}>
-      <Tabs
-        screenOptions={{ headerShown: false }}
-        tabBar={(props) => <CustomTabBar {...props} />}
-      >
-        <Tabs.Screen name="home" options={{ title: 'Home' }} />
-        <Tabs.Screen name="schedule" options={{ title: 'Schedule' }} />
-        <Tabs.Screen name="productivity" options={{ title: 'Productivity' }} />
-        <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
-      </Tabs>
-    </View>
+    <UserPointsProvider>
+      <View style={{ flex: 1 }}>
+        <Tabs
+          screenOptions={{ headerShown: false }}
+          tabBar={(props) => <CustomTabBar {...props} />}
+        >
+          <Tabs.Screen name="home" options={{ title: 'Home' }} />
+          <Tabs.Screen name="schedule" options={{ title: 'Schedule' }} />
+          <Tabs.Screen name="productivity" options={{ title: 'Productivity' }} />
+          <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+        </Tabs>
+      </View>
+    </UserPointsProvider>
   );
 }
 

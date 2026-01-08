@@ -2,15 +2,15 @@ import { Stack, useRouter } from "expo-router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import {
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { auth } from "../../firebaseConfig.js";
 import { getFirebaseErrorMessage } from "../../services/firebase/firebaseErrorHandler";
@@ -45,7 +45,14 @@ export default function Register() {
     setError("");
 
     try {
-      await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+      const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+      // Create user profile in Firestore
+      const { userServices } = await import("@/services/userServices");
+      await userServices.createUserProfile({
+        uid: cred.user.uid,
+        email: cred.user.email || trimmedEmail,
+        name,
+      });
       router.replace("/tabs/home");
     } catch (err) {
       let errorCode = "unknown";

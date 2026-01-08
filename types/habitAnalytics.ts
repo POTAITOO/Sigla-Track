@@ -2,8 +2,12 @@ import { Habit } from "./event";
 
 export interface HabitWithStatus extends Habit {
   completedToday: boolean;
+  isDueToday: boolean;
   streak: number;
-  completionRate: number;
+  longestStreak: number;
+  points: number;
+  completionsLast7Days: number;
+  opportunitiesLast7Days: number;
   lastCompleted?: string;
 }
 
@@ -15,6 +19,7 @@ export interface AnalyticsData {
   currentStreak: number;
   longestStreak: number;
   weeklyCompletion: number;
+  topHabitsByStreak: HabitWithStatus[];
 }
 
 export interface DetailData {
