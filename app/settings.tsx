@@ -47,13 +47,6 @@ export default function Profile() {
   // Here you can add logic to actually apply the theme to your app
 };
 
-  const handleHelpSupport = () => {
-    router.push('/help');
-  };
-
-  const handlePrivacyPolicy = () => {
-    router.push('/policy');
-  };
 
   const handleLogout = () => {
     // Add any logout logic here (clear tokens, etc.)
@@ -161,47 +154,7 @@ export default function Profile() {
           {/* Divider */}
           <View style={[styles.divider, { marginVertical: height * 0.01 }]} />
 
-          {/* Help & Support */}
-          <TouchableOpacity 
-            style={[styles.menuItem, { paddingVertical: height * 0.018 }]}
-            onPress={handleHelpSupport}
-          >
-            <View style={styles.menuItemLeft}>
-              <View style={[
-                styles.iconContainer,
-                {
-                  width: width * 0.1,
-                  height: width * 0.1,
-                  marginRight: width * 0.03,
-                }
-              ]}>
-                <Text style={[styles.menuIcon, { fontSize: width * 0.05 }]}>❓</Text>
-              </View>
-              <Text style={[styles.menuItemText, { fontSize: width * 0.04 }]}>Help & Support</Text>
-            </View>
-            <Text style={[styles.menuArrow, { fontSize: width * 0.06 }]}>›</Text>
-          </TouchableOpacity>
-
-          {/* Privacy policy */}
-          <TouchableOpacity 
-            style={[styles.menuItem, { paddingVertical: height * 0.018 }]}
-            onPress={handlePrivacyPolicy}
-          >
-            <View style={styles.menuItemLeft}>
-              <View style={[
-                styles.iconContainer,
-                {
-                  width: width * 0.1,
-                  height: width * 0.1,
-                  marginRight: width * 0.03,
-                }
-              ]}>
-                <Text style={[styles.menuIcon, { fontSize: width * 0.05 }]}>🔒</Text>
-              </View>
-              <Text style={[styles.menuItemText, { fontSize: width * 0.04 }]}>Privacy policy</Text>
-            </View>
-            <Text style={[styles.menuArrow, { fontSize: width * 0.06 }]}>›</Text>
-          </TouchableOpacity>
+          
 
           {/* Logout Button */}
           <TouchableOpacity 

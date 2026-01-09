@@ -2,8 +2,9 @@ import { useAuth } from '@/context/authContext';
 import { eventServices } from '@/services/eventServices';
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Dimensions, Image, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -11,6 +12,10 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 const verticalScale = (size: number) => (SCREEN_HEIGHT / 812) * size;
 const moderateScale = (size: number, factor = 0.5) => size + (scale(size) - size) * factor;
+const [filter, setFilter] = useState('today');
+const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+const [selectedDropdownOption, setSelectedDropdownOption] = useState('Icons');
 
 export default function Home() {
   const router = useRouter();
