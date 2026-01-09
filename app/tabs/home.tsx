@@ -2,7 +2,7 @@ import { useAuth } from '@/context/authContext';
 import { eventServices } from '@/services/eventServices';
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Dimensions, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -17,10 +17,7 @@ export default function Home() {
   const { user } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
-  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
-  const [filter, setFilter] = useState<'all' | 'today'>('today');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedDropdownOption, setSelectedDropdownOption] = useState('Icons');
+  const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
   const NAVBAR_HEIGHT = 72;
 
@@ -65,6 +62,11 @@ export default function Home() {
     fetchEvents();
   }, [fetchEvents]);
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchEvents().finally(() => setRefreshing(false));
+  }, [fetchEvents]);
+
   const getDayName = () => {
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     return days[currentTime.getDay()];
@@ -98,8 +100,14 @@ export default function Home() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar barStyle="dark-content" backgroundColor="#E0E0E0" />
-      <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: insets.bottom + NAVBAR_HEIGHT }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />
+        }
+      >
         {/* Gradient Background Circles */}
         <View style={[styles.gradientCircle1, {
           width: scale(300),
@@ -486,10 +494,10 @@ export default function Home() {
             )}
           </ScrollView>
         </View>
-      </View>
+      </ScrollView>
     </>
   );
-}
+} 
 
 const styles = StyleSheet.create({
   container: {

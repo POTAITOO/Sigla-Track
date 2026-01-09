@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
@@ -22,6 +23,10 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   const router = useRouter();
 
   const handleRegister = async () => {
@@ -36,8 +41,24 @@ export default function Register() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    // Firebase password requirements
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      setError("Password must contain at least one uppercase letter");
+      return;
+    }
+
+    if (!/[0-9]/.test(password)) {
+      setError("Password must contain at least one number");
+      return;
+    }
+
+    if (!/[!@#$%^&*]/.test(password)) {
+      setError("Password must contain at least one special character (!@#$%^&*)");
       return;
     }
 
@@ -45,7 +66,14 @@ export default function Register() {
     setError("");
 
     try {
-      await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+      const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+      // Create user profile in Firestore
+      const { userServices } = await import("@/services/userServices");
+      await userServices.createUserProfile({
+        uid: cred.user.uid,
+        email: cred.user.email || trimmedEmail,
+        name,
+      });
       router.replace("/tabs/home");
     } catch (err) {
       let errorCode = "unknown";
@@ -126,28 +154,60 @@ export default function Register() {
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Create a password"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoComplete="password-new"
-              />
+              <View style={styles.passwordInputWrapper}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Create a password"
+                  placeholderTextColor="#999"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoComplete="password-new"
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                />
+                {password && passwordFocused && (
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Feather
+                      name={showPassword ? "eye" : "eye-off"}
+                      size={20}
+                      color="#8B5CF6"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Re-enter your password"
-                placeholderTextColor="#999"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                autoComplete="password-new"
-              />
+              <View style={styles.passwordInputWrapper}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Re-enter your password"
+                  placeholderTextColor="#999"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoComplete="password-new"
+                  onFocus={() => setConfirmPasswordFocused(true)}
+                  onBlur={() => setConfirmPasswordFocused(false)}
+                />
+                {confirmPassword && confirmPasswordFocused && (
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    <Feather
+                      name={showConfirmPassword ? "eye" : "eye-off"}
+                      size={20}
+                      color="#8B5CF6"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -323,5 +383,25 @@ const styles = StyleSheet.create({
     color: "#8B5CF6",
     fontSize: 14,
     fontWeight: "600",
+  },
+  passwordInputWrapper: {
+    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  passwordInput: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: "#0F172A",
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 16,
+    padding: 8,
   },
 });

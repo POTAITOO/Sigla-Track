@@ -1,3 +1,47 @@
+# Productivity Dashboard Rules & Features
+
+## Overview
+The Productivity Dashboard gamifies habit tracking and analytics. It includes points, streaks, levels, badges, and visualizations for daily and weekly progress.
+
+## Card Features
+
+- **Streak Card**
+  - Shows your current streak (days in a row with at least one habit completed).
+  - Streak resets if no habit is completed today.
+  - Streak multiplier applies to points (1.5x for 3+, 2x for 7+ days).
+  - Line graph visualizes streaks for the last 7 days.
+
+- **Weekly Completion Card**
+  - Shows weekly completion percentage (average of all habits).
+  - Progress bar visualizes weekly completion.
+  - Suggestion encourages aiming for 100%.
+
+- **Completed Today Card**
+  - Shows the number and percentage of habits completed today (e.g., "3/5 habits completed — 60%").
+  - Lists completed habits for the current day.
+  - No bar graph, just icons, count, and percentage.
+
+- **Total Habits Card**
+  - Shows total number of tracked habits.
+  - No bar graph, just count and icon.
+
+## Points, Levels, Badges
+- Points: 10 per habit completed today, with streak multipliers.
+- Level: Every 250 points, up to level 5.
+- Badge: Changes with level.
+
+## Other Rules
+- Only unfinished habits are shown for completion.
+- Each habit can be completed only once per day.
+- Help modal summarizes all rules.
+
+## Visualizations
+- Streak: Line graph (last 7 days)
+- Weekly: Progress bar
+- Completed/Total: Icons and counts
+
+---
+
 # Firestore Composite Indexes
 
 To support queries for events and habits, create these indexes in the Firebase Console:

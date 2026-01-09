@@ -1,12 +1,13 @@
 import { Stack, useRouter } from 'expo-router';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../../firebaseConfig.js';
@@ -14,6 +15,7 @@ import { auth } from '../../firebaseConfig.js';
 
 export default function Profile() {
   const [user, setUser] = useState<User | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const NAVBAR_HEIGHT = 72;
@@ -40,10 +42,29 @@ export default function Profile() {
     }
   };
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    // Re-run auth state check
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setRefreshing(false);
+    });
+    setTimeout(() => {
+      unsubscribe();
+      setRefreshing(false);
+    }, 1000);
+  }, []);
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + NAVBAR_HEIGHT }}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: insets.bottom + NAVBAR_HEIGHT }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />
+        }
+      >
         <View style={headerStyle}>
           <Text style={styles.title}>Profile</Text>
         </View>
