@@ -9,7 +9,6 @@ import { ActivityIndicator, Platform, RefreshControl, ScrollView, StatusBar, Sty
 import { Modal, Provider as PaperProvider, Portal, Snackbar, Subheading, Surface, Title } from 'react-native-paper';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import HabitCreateModal from '../../components/HabitCreateModal';
 
 import AnalyticsCard from "@/components/productivity/AnalyticsCard";
 import EmptyState from "@/components/productivity/EmptyState";
@@ -18,8 +17,10 @@ import ProgressRing from "@/components/productivity/ProgressRing";
 import { useHabitAnalytics } from "@/hooks/useHabitAnalytics";
 import { BADGE_THRESHOLD, MAX_LEVEL, MAX_POINTS, getBadge, getCategoryIcon, getLevel } from "@/utils/productivityUtils";
 import { FontAwesome6 } from '@expo/vector-icons';
+import HabitCreateModalCollapsible from "../../components/HabitCreateModalCollapsible";
 
 export default function Productivity() {
+  
   // State for editing habit
   const [editingHabit, setEditingHabit] = useState<HabitWithStatus | null>(null);
   // State for delete confirmation
@@ -116,6 +117,22 @@ export default function Productivity() {
       default:
         return null;
     }
+  };
+
+  // Helper to format due dates for habits
+  const formatDueDates = (habit: HabitWithStatus): string => {
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    
+    if (habit.frequency === 'daily') {
+      return 'Every day';
+    } else if (habit.frequency === 'weekly') {
+      const daysText = habit.daysOfWeek?.map(d => DAYS[d]).join(', ') || 'No days selected';
+      return `Weekly: ${daysText}`;
+    } else if (habit.frequency === 'monthly') {
+      const date = new Date(habit.startDate).getDate();
+      return `Monthly: ${date}${date === 1 ? 'st' : date === 2 ? 'nd' : date === 3 ? 'rd' : 'th'}`;
+    }
+    return habit.frequency;
   };
 
   useEffect(() => {
@@ -243,8 +260,8 @@ export default function Productivity() {
                 </AnalyticsCard>
                 <AnalyticsCard
                   title="Today's Progress"
-                  value={`${analytics.completedToday}/${analytics.totalHabits}`}
-                  subtext={`${analytics.totalHabits > 0 ? Math.round((analytics.completedToday / analytics.totalHabits) * 100) : 0}% done ✓`}
+                  value={`${analytics.completedToday}/${analytics.completedToday + analytics.pendingToday}`}
+                  subtext={`${analytics.completedToday + analytics.pendingToday > 0 ? Math.round((analytics.completedToday / (analytics.completedToday + analytics.pendingToday)) * 100) : 0}% done ✓`}
                   icon="circle-check"
                   color="#f59e0b"
                   bgColor="#fef3c7"
@@ -332,7 +349,108 @@ export default function Productivity() {
                       <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', marginVertical: 20 }}>No habit streaks yet. Start completing habits to build streaks!</Text>
                     )}
                   </View>
-                ) : (
+                ) : selectedCard === 'weekly' ? (
+                  <View>
+                    <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#6366f1', marginBottom: 8 }}>{getDetailData()!.title}</Text>
+                    <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#18181b', marginBottom: 20 }}>
+                      {getDetailData()!.value}
+                    </Text>
+                    <View style={{ marginBottom: 20, height: 16, width: '100%', backgroundColor: '#e0f2fe', borderRadius: 8, overflow: 'hidden' }}>
+                      <View style={{ height: 16, width: `${Math.round(analytics.weeklyCompletion)}%`, backgroundColor: '#38bdf8', borderRadius: 8 }} />
+                    </View>
+                    <Text style={{ fontSize: 14, color: '#6b7280', marginBottom: 6 }}>Related: {getDetailData()!.related}</Text>
+                    <Text style={{ fontSize: 14, color: '#6366f1', marginBottom: 16 }}>{getDetailData()!.suggestion}</Text>
+                    <Text style={{ fontSize: 15, color: '#18181b', fontWeight: 'bold', marginBottom: 12 }}>Top Habit This Week:</Text>
+                    {habits.length > 0 ? (() => {
+                      const topHabit = [...habits].sort((a, b) => {
+                        const aRate = a.opportunitiesLast7Days > 0 ? (a.completionsLast7Days / a.opportunitiesLast7Days) * 100 : 0;
+                        const bRate = b.opportunitiesLast7Days > 0 ? (b.completionsLast7Days / b.opportunitiesLast7Days) * 100 : 0;
+                        return bRate - aRate;
+                      })[0];
+                      return (
+                        <View style={{ backgroundColor: '#f0f9ff', padding: 14, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#38bdf8' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <Text style={{ color: '#18181b', fontWeight: 'bold', fontSize: 16 }}>{topHabit.title}</Text>
+                            <Text style={{ color: '#38bdf8', fontWeight: 'bold', fontSize: 14 }}>
+                              {topHabit.opportunitiesLast7Days > 0 ? Math.round((topHabit.completionsLast7Days / topHabit.opportunitiesLast7Days) * 100) : 0}%
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Text style={{ color: '#6b7280', fontSize: 13 }}>{formatDueDates(topHabit)}</Text>
+                            <Text style={{ color: '#6b7280', fontSize: 13, fontWeight: '600' }}>{topHabit.completionsLast7Days}/{topHabit.opportunitiesLast7Days} completions</Text>
+                          </View>
+                        </View>
+                      );
+                    })() : (
+                      <Text style={{ fontSize: 14, color: '#6b7280' }}>No habits yet</Text>
+                    )}
+                  </View>
+                ) : selectedCard === 'total' ? (
+                  <View>
+                    <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#6366f1', marginBottom: 8 }}>{getDetailData()!.title}</Text>
+                    <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#18181b', marginBottom: 4 }}>
+                      {getDetailData()!.value} <Text style={{ fontSize: 18, color: '#6b7280' }}>{getDetailData()!.unit}</Text>
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#6b7280', marginBottom: 8 }}>Related: {getDetailData()!.related}</Text>
+                    <Text style={{ fontSize: 14, color: '#6366f1', marginBottom: 16 }}>{getDetailData()!.suggestion}</Text>
+                    <Text style={{ fontSize: 15, color: '#18181b', fontWeight: 'bold', marginBottom: 12 }}>Your Habits:</Text>
+                    {habits.length > 0 ? (
+                      <View>
+                        {habits.map((habit) => (
+                          <View key={habit.id} style={{ backgroundColor: '#f9fafb', padding: 12, borderRadius: 12, marginBottom: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <Text style={{ color: '#18181b', fontWeight: 'bold', fontSize: 14 }}>{habit.title}</Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ color: '#6b7280', fontSize: 12, backgroundColor: habit.isDueToday ? '#d1fae5' : '#f3f4f6', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                  {habit.isDueToday ? 'Due Today' : 'Not Due'}
+                                </Text>
+                                <Text style={{ color: '#f59e0b', fontWeight: 'bold', fontSize: 12 }}>{habit.streak}d 🔥</Text>
+                              </View>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={{ color: '#6b7280', fontSize: 12 }}>{formatDueDates(habit)}</Text>
+                              <Text style={{ color: '#6b7280', fontSize: 11 }}>Completion: {habit.completionsLast7Days}/{habit.opportunitiesLast7Days}</Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={{ fontSize: 14, color: '#6b7280' }}>No habits yet</Text>
+                    )}
+                  </View>                ) : selectedCard === 'completed' ? (
+                  <View>
+                    <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#6366f1', marginBottom: 8 }}>{getDetailData()!.title}</Text>
+                    <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#18181b', marginBottom: 6 }}>
+                      {getDetailData()!.value}
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#6b7280', marginBottom: 16 }}>
+                      <Text style={{ fontWeight: 'bold' }}>{getDetailData()!.unit}</Text> • {getDetailData()!.related}
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#6366f1', marginBottom: 16 }}>{getDetailData()!.suggestion}</Text>
+                    {analytics.completedToday > 0 ? (
+                      <>
+                        <Text style={{ fontSize: 15, color: '#18181b', fontWeight: 'bold', marginBottom: 12 }}>Top Completed Today:</Text>
+                        {(() => {
+                          const completedHabitsToday = habits.filter(h => h.isDueToday && h.completedToday);
+                          const topCompleted = completedHabitsToday.length > 0 ? completedHabitsToday[0] : null;
+                          return topCompleted ? (
+                            <View style={{ backgroundColor: '#f0fdf4', padding: 14, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#10b981' }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <Text style={{ color: '#18181b', fontWeight: 'bold', fontSize: 16 }}>{topCompleted.title}</Text>
+                                <Text style={{ color: '#10b981', fontWeight: 'bold', fontSize: 14 }}>✓ Done</Text>
+                              </View>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <Text style={{ color: '#6b7280', fontSize: 13 }}>{formatDueDates(topCompleted)}</Text>
+                                <Text style={{ color: '#6b7280', fontSize: 13, fontWeight: '600' }}>{topCompleted.streak}d streak 🔥</Text>
+                              </View>
+                            </View>
+                          ) : null;
+                        })()}
+                      </>
+                    ) : (
+                      <Text style={{ fontSize: 14, color: '#6b7280', fontStyle: 'italic' }}>No habits completed yet today. Get started!</Text>
+                    )}
+                  </View>                ) : (
                   <View>
                     <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#6366f1', marginBottom: 8 }}>{getDetailData()!.title}</Text>
                     <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#18181b', marginBottom: 4 }}>
@@ -385,7 +503,7 @@ export default function Productivity() {
             </View>
           </Modal>
 
-          <Modal visible={showAllHabits} onDismiss={() => setShowAllHabits(false)} contentContainerStyle={{ backgroundColor: '#fff', flex: 1, borderRadius: 0, paddingTop: 32, paddingHorizontal: 16 }}>
+          <Modal visible={showAllHabits} onDismiss={() => setShowAllHabits(false)} contentContainerStyle={{ backgroundColor: '#fff', flex: 1, borderRadius: 0, paddingHorizontal: 16, paddingTop: 16, paddingBottom: insets.bottom + 72 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#18181b' }}>All Habits</Text>
               <TouchableOpacity onPress={() => setShowAllHabits(false)} style={{ padding: 8 }}>
@@ -396,10 +514,7 @@ export default function Productivity() {
               {habits.map((habit) => (
                 <Surface 
                   key={habit.id} 
-                  style={[
-                    styles.allHabitsItem,
-                    { opacity: habit.isDueToday ? 1 : 0.6 }
-                  ]}
+                  style={styles.allHabitsItem}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                     <View style={[styles.habitIconContainer, { backgroundColor: habit.color || '#6366f1' }]}>
@@ -419,12 +534,11 @@ export default function Productivity() {
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <TouchableOpacity
-                      style={[styles.editButton, { opacity: habit.isDueToday ? 1 : 0.6 }]}
+                      style={styles.editButton}
                       onPress={() => {
                         handleEditHabit(habit);
                         setShowAllHabits(false);
                       }}
-                      disabled={!habit.isDueToday}
                     >
                       <Text style={{ color: '#fff', fontWeight: 'bold' }}>Edit</Text>
                     </TouchableOpacity>
@@ -471,7 +585,8 @@ export default function Productivity() {
           </Modal>
         </Portal>
 
-        <HabitCreateModal
+        {/* Habit Create/Edit Modal - Collapsible Design */}
+        <HabitCreateModalCollapsible
           visible={showCreateHabit}
           onDismiss={() => {
             setShowCreateHabit(false);
@@ -479,9 +594,11 @@ export default function Productivity() {
           }}
           onSuccess={(message) => {
             loadHabitsAndAnalytics();
+            setShowCreateHabit(false);
             setSnackbar({ visible: true, message, type: 'success' });
           }}
           onError={(message) => {
+            setShowCreateHabit(false);
             setSnackbar({ visible: true, message, type: 'error' });
           }}
           habit={editingHabit}

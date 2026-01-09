@@ -44,11 +44,13 @@ export const useHabitAnalytics = () => {
       let totalOpportunities = 0;
 
       habitsWithStatus.forEach(habit => {
-        if (habit.completedToday) {
-          completedToday++;
-        }
-        if (habit.isDueToday && !habit.completedToday) {
-          pendingToday++;
+        // Only count today's progress for habits that are due today
+        if (habit.isDueToday) {
+          if (habit.completedToday) {
+            completedToday++;
+          } else {
+            pendingToday++;
+          }
         }
         totalPoints += habit.points;
         if (habit.streak > currentStreak) {

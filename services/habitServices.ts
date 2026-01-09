@@ -3,14 +3,15 @@ import { Habit, HabitCreateInput, HabitLog } from '@/types/event';
 import { HabitWithStatus } from '@/types/habitAnalytics';
 import { getAuth } from 'firebase/auth';
 import {
-    addDoc,
-    collection,
-    doc,
-    getDocs,
-    orderBy,
-    query,
-    updateDoc,
-    where
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 
 /**
@@ -44,7 +45,7 @@ export const habitServices = {
    */
   async createHabit(userId: string, habitData: HabitCreateInput): Promise<Habit> {
     try {
-      // Prevent duplicate habits: check for existing habit with same title and category
+      // Prevent duplicate habits: check for existing ACTIVE habit with same title and category
       const dupQ = query(
         collection(db, HABITS_COLLECTION),
         where('userId', '==', userId),
@@ -54,7 +55,7 @@ export const habitServices = {
       );
       const dupSnap = await getDocs(dupQ);
       if (!dupSnap.empty) {
-        throw new Error('A habit with this name and category already exists.');
+        throw new Error('A habit with this name and category already exists. Please use a different name or category.');
       }
 
       const docRef = await addDoc(collection(db, HABITS_COLLECTION), {
@@ -158,22 +159,83 @@ export const habitServices = {
   /**
    * Update a habit
    */
-  async updateHabit(habitId: string, updateData: Partial<HabitCreateInput>): Promise<void> {
+  async updateHabit(habitId: string, updateData: Partial<HabitCreateInput>): Promise<boolean> {
     try {
       const habitRef = doc(db, HABITS_COLLECTION, habitId);
-      const dataToUpdate: any = {
-        ...updateData,
-        updatedAt: new Date().toISOString(),
-      };
+      
+      // Fetch the existing document to preserve fields like userId for security rules
+      const existingDocSnap = await getDoc(habitRef);
+      
+      if (!existingDocSnap.exists()) {
+        throw new Error('Habit not found');
+      }
+      
+      const existingData = existingDocSnap.data();
+      
+      // Build update data, filtering out undefined values
+      const dataToUpdate: any = {};
+      let hasChanges = false;
+
+      // Only include fields that are defined and have actually changed
+      if (updateData.title !== undefined && updateData.title !== existingData.title) {
+        dataToUpdate.title = updateData.title;
+        hasChanges = true;
+      }
+      if (updateData.description !== undefined && updateData.description !== existingData.description) {
+        dataToUpdate.description = updateData.description;
+        hasChanges = true;
+      }
+      if (updateData.category !== undefined && updateData.category !== existingData.category) {
+        dataToUpdate.category = updateData.category;
+        hasChanges = true;
+      }
+      if (updateData.frequency !== undefined && updateData.frequency !== existingData.frequency) {
+        dataToUpdate.frequency = updateData.frequency;
+        hasChanges = true;
+      }
+      if (updateData.daysOfWeek !== undefined && JSON.stringify(updateData.daysOfWeek) !== JSON.stringify(existingData.daysOfWeek)) {
+        dataToUpdate.daysOfWeek = updateData.daysOfWeek;
+        hasChanges = true;
+      }
+      if (updateData.color !== undefined && updateData.color !== existingData.color) {
+        dataToUpdate.color = updateData.color;
+        hasChanges = true;
+      }
+      if (updateData.reminder !== undefined && updateData.reminder !== existingData.reminder) {
+        dataToUpdate.reminder = updateData.reminder;
+        hasChanges = true;
+      }
 
       if (updateData.startDate) {
-        dataToUpdate.startDate = updateData.startDate.toISOString();
+        const newStartDate = updateData.startDate.toISOString();
+        if (newStartDate !== existingData.startDate) {
+          dataToUpdate.startDate = newStartDate;
+          hasChanges = true;
+        }
       }
       if (updateData.endDate) {
-        dataToUpdate.endDate = updateData.endDate.toISOString();
+        const newEndDate = updateData.endDate.toISOString();
+        if (newEndDate !== existingData.endDate) {
+          dataToUpdate.endDate = newEndDate;
+          hasChanges = true;
+        }
+      }
+
+      // If no changes, return false to indicate no update was made
+      if (!hasChanges) {
+        return false;
+      }
+
+      // Add updatedAt only if there are actual changes
+      dataToUpdate.updatedAt = new Date().toISOString();
+      
+      // Ensure userId is preserved for security rule validation
+      if (existingData.userId && !dataToUpdate.userId) {
+        dataToUpdate.userId = existingData.userId;
       }
 
       await updateDoc(habitRef, dataToUpdate);
+      return true; // Return true to indicate update was successful
     } catch (error) {
       throw new HabitServiceError('Could not update habit. Please check your input and try again.', error);
     }
@@ -438,20 +500,43 @@ export const habitServices = {
           }
         }
 
-        // Calculate weekly completion stats
-        let opportunitiesLast7Days = 0;
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 6);
+        // Calculate weekly completion stats based on calendar week (Monday-Sunday)
+        let opportunitiesThisWeek = 0;
+        
+        // Get the start of the current week (Monday)
+        const startOfWeek = new Date(today);
+        const dayOfWeek = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
 
+        // Count opportunities for all 7 days of the week based on frequency, 
+        // but only up to today (don't count future days)
         for (let i = 0; i < 7; i++) {
-          const day = new Date(today);
-          day.setDate(today.getDate() - i);
-          if (isHabitDueOn(habit, day)) {
-            opportunitiesLast7Days++;
+          const day = new Date(startOfWeek);
+          day.setDate(startOfWeek.getDate() + i);
+          
+          // Stop at today or beyond
+          if (day > today) break;
+          
+          // Count opportunity if the day matches the habit's frequency
+          // (ignoring the habit's startDate for weekly calculations)
+          const dayOfWeekNum = (day.getDay() + 6) % 7; // 0=Mon, ..., 6=Sun
+          
+          if (habit.frequency === 'daily') {
+            opportunitiesThisWeek++;
+          } else if (habit.frequency === 'weekly' && habit.daysOfWeek?.includes(dayOfWeekNum)) {
+            opportunitiesThisWeek++;
+          } else if (habit.frequency === 'monthly' && day.getDate() === new Date(habit.startDate).getDate()) {
+            opportunitiesThisWeek++;
           }
         }
         
-        const completionsLast7Days = uniqueLogDates.filter(d => d >= sevenDaysAgo.getTime()).length;
+        // Count completions from the start of this week until today
+        const completionsThisWeek = uniqueLogDates.filter(d => {
+          const logDate = new Date(d);
+          return logDate >= startOfWeek && logDate <= today;
+        }).length;
 
         habitsWithStatus.push({
           ...habit,
@@ -460,8 +545,8 @@ export const habitServices = {
           streak: currentStreak,
           longestStreak,
           points: uniqueLogDates.length * 10,
-          completionsLast7Days,
-          opportunitiesLast7Days,
+          completionsLast7Days: completionsThisWeek,
+          opportunitiesLast7Days: opportunitiesThisWeek,
         });
       }
 
