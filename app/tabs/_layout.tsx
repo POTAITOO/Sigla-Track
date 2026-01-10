@@ -1,8 +1,9 @@
 
+import { useEventModal } from '@/context/eventModalContext';
 import { UserPointsProvider } from '@/context/userPointsContext';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Tabs, router } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView as RNSafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,6 +17,8 @@ const navItems = [
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { openCreateModal } = useEventModal();
+
   return (
     <RNSafeAreaView edges={['bottom']} style={{ backgroundColor: '#232B39' }}>
       <View style={[styles.navBar, { paddingBottom: Math.max(insets.bottom, 8) }]}> 
@@ -27,7 +30,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               <TouchableOpacity
                 key="create"
                 accessibilityRole="button"
-                onPress={() => router.push('/events/create')}
+                onPress={openCreateModal}
                 style={[
                   styles.createTab,
                   { marginBottom: insets.bottom > 0 ? insets.bottom : 8 },
