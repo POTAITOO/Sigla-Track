@@ -72,10 +72,11 @@ export const habitServices = {
         category: habitData.category || 'other',
         frequency: habitData.frequency,
         daysOfWeek: habitData.daysOfWeek || [],
+        dayOfMonth: habitData.dayOfMonth || null,
         startDate: habitData.startDate.toISOString(),
         endDate: habitData.endDate ? habitData.endDate.toISOString() : null,
         color: habitData.color || '#2ecc71',
-        reminder: habitData.reminder || 30,
+        reminderTime: habitData.reminderTime,
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -89,10 +90,11 @@ export const habitServices = {
         category: habitData.category || 'other',
         frequency: habitData.frequency,
         daysOfWeek: habitData.daysOfWeek || [],
+        dayOfMonth: habitData.dayOfMonth || undefined,
         startDate: habitData.startDate.toISOString(),
         endDate: habitData.endDate ? habitData.endDate.toISOString() : undefined,
         color: habitData.color || '#2ecc71',
-        reminder: habitData.reminder || 30,
+        reminderTime: habitData.reminderTime,
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -203,12 +205,16 @@ export const habitServices = {
         dataToUpdate.daysOfWeek = updateData.daysOfWeek;
         hasChanges = true;
       }
+      if (updateData.dayOfMonth !== undefined && updateData.dayOfMonth !== existingData.dayOfMonth) {
+        dataToUpdate.dayOfMonth = updateData.dayOfMonth;
+        hasChanges = true;
+      }
       if (updateData.color !== undefined && updateData.color !== existingData.color) {
         dataToUpdate.color = updateData.color;
         hasChanges = true;
       }
-      if (updateData.reminder !== undefined && updateData.reminder !== existingData.reminder) {
-        dataToUpdate.reminder = updateData.reminder;
+      if (updateData.reminderTime !== undefined && updateData.reminderTime !== existingData.reminderTime) {
+        dataToUpdate.reminderTime = updateData.reminderTime;
         hasChanges = true;
       }
 

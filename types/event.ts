@@ -21,10 +21,11 @@ export interface Habit {
   category?: 'health' | 'fitness' | 'learning' | 'productivity' | 'other';
   frequency: 'daily' | 'weekly' | 'monthly'; // how often the habit occurs
   daysOfWeek?: number[]; // 0-6 for weekly habits
+  dayOfMonth?: number; // 1-31 for monthly habits
   startDate: string; // ISO 8601 format
   endDate?: string;
   color?: string;
-  reminder?: number; // minutes before the scheduled time
+  reminderTime?: string; // HH:MM format (e.g., "08:00" for 8:00 AM)
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -55,8 +56,9 @@ export interface HabitCreateInput {
   category?: 'health' | 'fitness' | 'learning' | 'productivity' | 'other';
   frequency: 'daily' | 'weekly' | 'monthly';
   daysOfWeek?: number[];
+  dayOfMonth?: number;
   startDate: Date;
   endDate?: Date;
   color?: string;
-  reminder?: number;
+  reminderTime?: string; // HH:MM format
 }

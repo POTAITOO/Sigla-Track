@@ -42,8 +42,8 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [hasEndDate, setHasEndDate] = useState(false);
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
-  const [reminder, setReminder] = useState('30');
-
+  const [reminderTime, setReminderTime] = useState('');
+  const [showReminderTimePicker, setShowReminderTimePicker] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
@@ -65,7 +65,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
       setEndDate(habit.endDate ? new Date(habit.endDate) : null);
       setHasEndDate(!!habit.endDate);
       setSelectedColor(habit.color || COLORS[0]);
-      setReminder(habit.reminder?.toString() || '30');
+      setReminderTime(habit.reminderTime || '');
       setErrors({});
     } else {
       resetForm();
@@ -83,7 +83,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
       selectedFrequency !== (habit.frequency || null) ||
       JSON.stringify(selectedDays) !== JSON.stringify(habit.daysOfWeek || []) ||
       selectedColor !== (habit.color || COLORS[0]) ||
-      reminder !== (habit.reminder?.toString() || '30') ||
+      reminderTime !== (habit.reminderTime || '08:00') ||
       hasEndDate !== !!habit.endDate ||
       (hasEndDate && endDate && habit.endDate && 
         endDate.getTime() !== new Date(habit.endDate).getTime())
@@ -130,7 +130,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
     setEndDate(null);
     setHasEndDate(false);
     setSelectedColor(COLORS[0]);
-    setReminder('30');
+    setReminderTime('');
     setErrors({});
   };
 
@@ -142,9 +142,8 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
     if (selectedFrequency === 'weekly' && selectedDays.length === 0) {
       newErrors.days = 'Please select at least one day for weekly habits.';
     }
-    const reminderInt = parseInt(reminder, 10);
-    if (isNaN(reminderInt) || reminderInt <= 0) {
-      newErrors.reminder = 'Reminder must be a positive number.';
+    if (!reminderTime || !/^\d{2}:\d{2}$/.test(reminderTime)) {
+      newErrors.reminderTime = 'Please set a valid reminder time (HH:MM format).';
     }
     setErrors(newErrors);
     return Object.values(newErrors).every(error => error === null);
@@ -168,7 +167,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
         startDate,
         endDate: hasEndDate && endDate ? endDate : undefined,
         color: selectedColor,
-        reminder: parseInt(reminder, 10),
+        reminderTime: reminderTime,
       };
 
       if (habit?.id) {
@@ -385,22 +384,33 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
                   ))}
                 </View>
 
-                <Text style={styles.label}>Reminder</Text>
-                <TextInput
-                  label="Minutes before event"
-                  value={reminder}
-                  onChangeText={(text) => {
-                    setReminder(text);
-                    const num = parseInt(text, 10);
-                    if (!isNaN(num) && num > 0) setErrors(prev => ({ ...prev, reminder: null }));
-                  }}
-                  style={styles.input}
-                  mode="outlined"
-                  keyboardType="number-pad"
-                  error={!!errors.reminder}
-                  placeholderTextColor="#9ca3af"
-                />
-                {errors.reminder && <Text style={styles.errorText}>{errors.reminder}</Text>}
+                <Text style={styles.label}>Reminder Time</Text>
+                <TouchableOpacity
+                  onPress={() => setShowReminderTimePicker(true)}
+                  style={[styles.input, { justifyContent: 'center', paddingHorizontal: 12, height: 56 }]}
+                >
+                  <Text style={{ fontSize: 16, color: reminderTime ? '#000' : '#9ca3af' }}>
+                    {reminderTime || 'Select reminder time'}
+                  </Text>
+                </TouchableOpacity>
+                {errors.reminderTime && <Text style={styles.errorText}>{errors.reminderTime}</Text>}
+                
+                {showReminderTimePicker && (
+                  <DateTimePicker
+                    value={new Date(`2000-01-01T${reminderTime}:00`)}
+                    mode="time"
+                    display="spinner"
+                    onChange={(event, selectedTime) => {
+                      setShowReminderTimePicker(false);
+                      if (selectedTime) {
+                        const hours = String(selectedTime.getHours()).padStart(2, '0');
+                        const minutes = String(selectedTime.getMinutes()).padStart(2, '0');
+                        setReminderTime(`${hours}:${minutes}`);
+                        setErrors(prev => ({ ...prev, reminderTime: null }));
+                      }
+                    }}
+                  />
+                )}
               </View>
             )}
           </View>

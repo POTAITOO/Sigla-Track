@@ -1,12 +1,13 @@
 import CustomAlert from '@/components/CustomAlert';
 import EventCreateModal from '@/components/EventCreateModal';
-import { AuthProvider } from '@/context/authContext';
+import { AuthProvider, useAuth } from '@/context/authContext';
 import { EventModalProvider, useEventModal } from '@/context/eventModalContext';
 import { Stack } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { PaperProvider, Text } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
+import { expoPushTokenService } from '@/services/expoPushTokenService';
 
 export type AlertType = 'success' | 'error' | 'warning' | 'info';
 
@@ -127,7 +128,15 @@ const toastConfig = {
 
 function RootLayoutContent() {
   const { isVisible, selectedEvent, closeModal } = useEventModal();
+  const { user } = useAuth();
   const [alertState, setAlertState] = useState<AlertState>({ visible: false, type: 'info', title: '', message: '' });
+
+  // Register for push notifications when user logs in
+  useEffect(() => {
+    if (user?.uid) {
+      expoPushTokenService.registerForPushNotifications(user.uid);
+    }
+  }, [user?.uid]);
 
   const handleSuccess = (message: string) => {
     setAlertState({

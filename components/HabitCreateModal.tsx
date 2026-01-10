@@ -36,11 +36,12 @@ const HabitCreateModal = ({ visible, onDismiss, onSuccess, onError, habit }: Hab
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [hasEndDate, setHasEndDate] = useState(false);
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
-  const [reminder, setReminder] = useState('30');
+  const [reminderTime, setReminderTime] = useState('');
 
   // Picker visibility
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [showReminderTimePicker, setShowReminderTimePicker] = useState(false);
 
   // Validation errors
   const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
@@ -64,7 +65,7 @@ const HabitCreateModal = ({ visible, onDismiss, onSuccess, onError, habit }: Hab
       setEndDate(habit.endDate ? new Date(habit.endDate) : null);
       setHasEndDate(!!habit.endDate);
       setSelectedColor(habit.color || COLORS[0]);
-      setReminder(habit.reminder?.toString() || '30');
+      setReminderTime(habit.reminderTime || '');
       setErrors({});
     } else {
       resetForm();
@@ -118,7 +119,7 @@ const HabitCreateModal = ({ visible, onDismiss, onSuccess, onError, habit }: Hab
     setEndDate(null);
     setHasEndDate(false);
     setSelectedColor(COLORS[0]);
-    setReminder('30');
+    setReminderTime('08:00');
     setErrors({});
   };
 
@@ -133,9 +134,8 @@ const HabitCreateModal = ({ visible, onDismiss, onSuccess, onError, habit }: Hab
     if (hasEndDate && endDate && startDate >= endDate) {
       newErrors.endDate = 'End date must be after start date.';
     }
-    const reminderInt = parseInt(reminder, 10);
-    if (isNaN(reminderInt) || reminderInt <= 0) {
-      newErrors.reminder = 'Reminder must be a positive number of minutes.';
+    if (!reminderTime || !/^\d{2}:\d{2}$/.test(reminderTime)) {
+      newErrors.reminderTime = 'Please set a valid reminder time (HH:MM format).';
     }
     setErrors(newErrors);
     return Object.values(newErrors).every(error => error === null);
@@ -159,7 +159,7 @@ const HabitCreateModal = ({ visible, onDismiss, onSuccess, onError, habit }: Hab
         startDate,
         endDate: hasEndDate && endDate ? endDate : undefined,
         color: selectedColor,
-        reminder: parseInt(reminder, 10),
+        reminderTime: reminderTime,
       };
       
       if (habit?.id) {
@@ -365,20 +365,42 @@ const HabitCreateModal = ({ visible, onDismiss, onSuccess, onError, habit }: Hab
             </View>
 
             <TextInput 
-              label="Reminder (minutes before)" 
-              value={reminder} 
-              onChangeText={(text) => {
-                setReminder(text);
-                const num = parseInt(text, 10);
-                if (!isNaN(num) && num > 0) setErrors(prev => ({ ...prev, reminder: null }));
-              }} 
-              style={styles.input} 
+              label="Reminder Time" 
+              value={reminderTime}
+              editable={false}
+              onPress={() => setShowReminderTimePicker(true)}
+              style={[styles.input, { justifyContent: 'center' }]} 
               mode="outlined" 
-              keyboardType="number-pad"
-              error={!!errors.reminder}
+              error={!!errors.reminderTime}
               placeholderTextColor="#9ca3af"
             />
-            {errors.reminder && <Text style={styles.errorText}>{errors.reminder}</Text>}
+            {errors.reminderTime && <Text style={styles.errorText}>{errors.reminderTime}</Text>}
+
+            <TouchableOpacity 
+              onPress={() => setShowReminderTimePicker(true)}
+              style={[styles.input, { justifyContent: 'center', paddingHorizontal: 12, height: 56, marginTop: 8 }]}
+            >
+              <Text style={{ fontSize: 16, color: reminderTime ? '#000' : '#9ca3af' }}>
+                {reminderTime || 'Select reminder time'}
+              </Text>
+            </TouchableOpacity>
+
+            {showReminderTimePicker && (
+              <DateTimePicker
+                value={new Date(`2000-01-01T${reminderTime}:00`)}
+                mode="time"
+                display="spinner"
+                onChange={(event, selectedTime) => {
+                  setShowReminderTimePicker(false);
+                  if (selectedTime) {
+                    const hours = String(selectedTime.getHours()).padStart(2, '0');
+                    const minutes = String(selectedTime.getMinutes()).padStart(2, '0');
+                    setReminderTime(`${hours}:${minutes}`);
+                    setErrors(prev => ({ ...prev, reminderTime: null }));
+                  }
+                }}
+              />
+            )}
           </View>
         </ScrollView>
 
