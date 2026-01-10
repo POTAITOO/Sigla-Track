@@ -1,7 +1,8 @@
+import { toastService } from '@/services/toastService';
 import { userServices } from '@/services/userServices';
 import { User } from 'firebase/auth';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Button from './Button';
 import { COLORS, SPACING } from './constants';
 
@@ -39,8 +40,8 @@ export default function EditProfile({ user, onClose }: EditProfileProps) {
           setOriginalBio(userBio);
           setIsLoaded(true);
         }
-      } catch (error) {
-        console.error('Error loading user data:', error);
+      } catch {
+        toastService.error('Failed to load profile data');
         if (isMounted) {
           setIsLoaded(true);
         }
@@ -58,12 +59,12 @@ export default function EditProfile({ user, onClose }: EditProfileProps) {
 
   const handleSaveChanges = async () => {
     if (!user) {
-      Alert.alert('Error', 'No user found');
+      toastService.error('No user found');
       return;
     }
 
     if (!displayName.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+      toastService.error('Please enter your name');
       return;
     }
 
@@ -73,10 +74,10 @@ export default function EditProfile({ user, onClose }: EditProfileProps) {
         name: displayName,
         bio: bio,
       });
-      Alert.alert('Success', 'Profile updated successfully');
+      toastService.success('Profile updated successfully');
       onClose();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update profile');
+      toastService.error(error.message || 'Failed to update profile');
     } finally {
       setLoading(false);
     }

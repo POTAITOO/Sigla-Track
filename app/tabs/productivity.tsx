@@ -1,12 +1,15 @@
 import { useAuth } from "@/context/authContext";
+import { useEventModal } from "@/context/eventModalContext";
 import { useUserPoints } from "@/context/userPointsContext";
 import { habitServices } from "@/services/habitServices";
+import { userServices } from "@/services/userServices";
+import { toastService } from "@/services/toastService";
 import { HabitWithStatus } from "@/types/habitAnalytics";
 import * as Haptics from 'expo-haptics';
 import { Stack } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Platform, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Modal, Provider as PaperProvider, Portal, Snackbar, Subheading, Surface, Title } from 'react-native-paper';
+import { Modal, Provider as PaperProvider, Portal, Subheading, Surface, Title } from 'react-native-paper';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -30,7 +33,7 @@ export default function Productivity() {
   // Handler for Edit button
   const handleEditHabit = (habit: HabitWithStatus) => {
     setEditingHabit(habit);
-    setShowCreateHabit(true);
+    setHabitModalVisible(true);
   };
 
   // Handler for Delete button
@@ -44,22 +47,18 @@ export default function Productivity() {
     setIsDeleting(true);
     try {
       await habitServices.deleteHabit(deletingHabit.id);
-      setSnackbar({ 
-        visible: true, 
-        message: `"${deletingHabit.title}" deleted`, 
-        type: 'success' 
-      });
+      toastService.warning(`"${deletingHabit.title}" deleted`);
       await loadHabitsAndAnalytics(true);
-    } catch (error) {
-      console.error("Error deleting habit:", error);
-      setSnackbar({ visible: true, message: 'Failed to delete habit.', type: 'error' });
+    } catch {
+      toastService.error('Failed to delete habit. Please try again.');
     } finally {
       setIsDeleting(false);
       setDeletingHabit(null);
     }
   };
-  const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string; type?: 'error'|'success' }>({ visible: false, message: '' });
+
   const [completingHabitId, setCompletingHabitId] = useState<string | null>(null);
+  const { setHabitModalVisible, isHabitModalVisible } = useEventModal();
   const { points, refresh: refreshPoints } = useUserPoints();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -72,7 +71,6 @@ export default function Productivity() {
     await loadHabitsAndAnalytics(true);
   }, [loadHabitsAndAnalytics]);
 
-  const [showCreateHabit, setShowCreateHabit] = useState(false);
   const [showAllHabits, setShowAllHabits] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [selectedCard, setSelectedCard] = useState<null | 'streak' | 'weekly' | 'completed' | 'total'>(null);
@@ -136,8 +134,12 @@ export default function Productivity() {
   };
 
   useEffect(() => {
+    // Initialize points field for existing users
+    if (user?.uid) {
+      userServices.ensureUserHasPoints(user.uid);
+    }
     loadHabitsAndAnalytics();
-  }, [loadHabitsAndAnalytics]);
+  }, [loadHabitsAndAnalytics, user?.uid]);
 
   const handleCompleteHabit = async (habitId: string) => {
     if (!user) return;
@@ -148,16 +150,17 @@ export default function Productivity() {
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
+      // Wait a brief moment for Firestore to update
+      await new Promise(resolve => setTimeout(resolve, 500));
       await refreshPoints();
       await loadHabitsAndAnalytics();
-      setSnackbar({ visible: true, message: 'Habit completed!', type: 'success' });
+      toastService.success('Habit completed!');
     } catch (error: any) {
-      console.error("Error completing habit:", error);
       let msg = 'Failed to complete habit. Please try again.';
       if (typeof error?.message === 'string' && error.message.includes('already')) {
         msg = error.message;
       }
-      setSnackbar({ visible: true, message: msg, type: 'error' });
+      toastService.error(msg);
     } finally {
       setCompletingHabitId(null);
     }
@@ -217,7 +220,7 @@ export default function Productivity() {
           </View>
 
           {habits.length === 0 ? (
-            <EmptyState onPress={() => setShowCreateHabit(true)} />
+            <EmptyState onPress={() => setHabitModalVisible(true)} />
           ) : (
             <>
               {/* Activity Ring Section */}
@@ -281,7 +284,7 @@ export default function Productivity() {
               {/* Today's Habits Section */}
               <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#18181b' }}>Today&apos;s Habits</Text>
+                  <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#18181b' }}>Today's Habits</Text>
                   {habits.length > 0 && (
                     <TouchableOpacity onPress={() => setShowAllHabits(true)}>
                       <Text style={{ color: '#6366f1', fontWeight: 'bold', fontSize: 16 }}>View All</Text>
@@ -307,7 +310,7 @@ export default function Productivity() {
               {/* Create Habit CTA */}
               <TouchableOpacity
                 style={{ backgroundColor: '#6366f1', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, borderRadius: 32, marginHorizontal: 32, marginBottom: 24 }}
-                onPress={() => setShowCreateHabit(true)}
+                onPress={() => setHabitModalVisible(true)}
                 activeOpacity={0.9}
               >
                 <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Create New Habit</Text>
@@ -471,7 +474,7 @@ export default function Productivity() {
             <View>
               <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#6366f1', marginBottom: 12 }}>How Productivity Works</Text>
               <Text style={{ fontSize: 16, color: '#18181b', marginBottom: 10 }}>
-                Track, gamify, and grow your habits! Here’s how everything works:
+                Track your habits, earn points, and build lasting routines. Here's everything you need to know:
               </Text>
               <Text style={{ fontSize: 15, color: '#18181b', marginBottom: 8 }}>
                 • <Text style={{ fontWeight: 'bold' }}>Per-Habit Streaks:</Text> Each habit has its own streak. Your streak increases by 1 for every consecutive day you complete that habit. If you miss a day, the streak resets <Text style={{ fontWeight: 'bold' }}>the next day</Text> (not immediately).
@@ -498,7 +501,7 @@ export default function Productivity() {
                 Stay consistent to level up, earn badges, and build lasting habits! Pull down to refresh. Tap this help icon anytime for guidance.
               </Text>
               <TouchableOpacity onPress={() => setShowHelp(false)} style={{ marginTop: 18, alignSelf: 'flex-end', backgroundColor: '#6366f1', borderRadius: 12, paddingHorizontal: 18, paddingVertical: 8 }}>
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Close</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Got it!</Text>
               </TouchableOpacity>
             </View>
           </Modal>
@@ -526,10 +529,12 @@ export default function Productivity() {
                     </View>
                     <View>
                       <Text style={styles.allHabitsTitle}>{habit.title}</Text>
-                      <Text style={styles.allHabitsSubtext}>
-                        {habit.frequency} • {habit.streak > 0 ? `${habit.streak}d streak` : 'No streak'}
-                        {!habit.isDueToday && ' (Not due)'}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                        <Text style={styles.allHabitsSubtext}>
+                          {habit.frequency} • {habit.streak > 0 ? `${habit.streak}d streak` : 'No streak'}
+                          {!habit.isDueToday && ' (Not due)'}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -540,7 +545,7 @@ export default function Productivity() {
                         setShowAllHabits(false);
                       }}
                     >
-                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Edit</Text>
+                      <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>Edit</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.deleteButton}
@@ -549,7 +554,7 @@ export default function Productivity() {
                         setShowAllHabits(false);
                       }}
                     >
-                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Delete</Text>
+                      <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>Delete</Text>
                     </TouchableOpacity>
                   </View>
                 </Surface>
@@ -560,7 +565,7 @@ export default function Productivity() {
           <Modal visible={!!deletingHabit} onDismiss={() => !isDeleting && setDeletingHabit(null)} contentContainerStyle={{ backgroundColor: '#fff', margin: 32, borderRadius: 16, padding: 24 }}>
             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#ef4444', marginBottom: 12 }}>Delete Habit?</Text>
             <Text style={{ fontSize: 15, color: '#6b7280', marginBottom: 8 }}>Are you sure you want to delete:</Text>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#18181b', marginBottom: 20 }}>&quot;{deletingHabit?.title}&quot;</Text>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#18181b', marginBottom: 20 }}>"{deletingHabit?.title}"</Text>
             <Text style={{ fontSize: 14, color: '#f59e0b', marginBottom: 24 }}>⚠️ This will hide the habit and all its history.</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
               <TouchableOpacity 
@@ -587,31 +592,22 @@ export default function Productivity() {
 
         {/* Habit Create/Edit Modal - Collapsible Design */}
         <HabitCreateModalCollapsible
-          visible={showCreateHabit}
+          visible={isHabitModalVisible}
           onDismiss={() => {
-            setShowCreateHabit(false);
+            setHabitModalVisible(false);
             setEditingHabit(null);
           }}
           onSuccess={(message) => {
             loadHabitsAndAnalytics();
-            setShowCreateHabit(false);
-            setSnackbar({ visible: true, message, type: 'success' });
+            setHabitModalVisible(false);
+            toastService.success(message);
           }}
           onError={(message) => {
-            setShowCreateHabit(false);
-            setSnackbar({ visible: true, message, type: 'error' });
+            setHabitModalVisible(false);
+            toastService.error(message);
           }}
           habit={editingHabit}
         />
-
-        <Snackbar
-          visible={snackbar.visible}
-          onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
-          duration={3000}
-          style={{ backgroundColor: snackbar.type === 'error' ? '#ef4444' : '#22c55e' }}
-        >
-          {snackbar.message}
-        </Snackbar>
       </View>
     </PaperProvider>
   );
@@ -649,10 +645,12 @@ const styles = StyleSheet.create({
     marginRight: 4,
     backgroundColor: '#fbbf24',
     borderRadius: 8,
+    paddingHorizontal: 16,
   },
   deleteButton: {
     padding: 6,
     backgroundColor: '#ef4444',
     borderRadius: 8,
+    paddingHorizontal: 16,
   },
 });

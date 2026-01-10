@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Run migration for current user only
       if (firebaseUser) {
         userServices.migrateUsersSchema(firebaseUser.uid).catch((err) => {
-          console.error('Migration failed:', err);
+          toastService.error('Failed to sync profile data');
           // Don't block app - migration errors are not critical
         });
       }

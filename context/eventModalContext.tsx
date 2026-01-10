@@ -14,16 +14,19 @@ type Event = {
 
 interface EventModalContextType {
   isVisible: boolean;
+  isHabitModalVisible: boolean;
   selectedEvent: Event | null;
   openCreateModal: () => void;
   openEditModal: (event: Event) => void;
   closeModal: () => void;
+  setHabitModalVisible: (visible: boolean) => void;
 }
 
 const EventModalContext = createContext<EventModalContextType | undefined>(undefined);
 
 export const EventModalProvider = ({ children }: { children: React.ReactNode }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isHabitModalVisible, setIsHabitModalVisible] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const openCreateModal = () => {
@@ -41,8 +44,12 @@ export const EventModalProvider = ({ children }: { children: React.ReactNode }) 
     setSelectedEvent(null);
   };
 
+  const setHabitModalVisibleFn = (visible: boolean) => {
+    setIsHabitModalVisible(visible);
+  };
+
   return (
-    <EventModalContext.Provider value={{ isVisible, selectedEvent, openCreateModal, openEditModal, closeModal }}>
+    <EventModalContext.Provider value={{ isVisible, isHabitModalVisible, selectedEvent, openCreateModal, openEditModal, closeModal, setHabitModalVisible: setHabitModalVisibleFn }}>
       {children}
     </EventModalContext.Provider>
   );

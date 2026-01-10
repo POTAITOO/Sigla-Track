@@ -1,19 +1,19 @@
 import { useAuth } from '@/context/authContext';
 import { habitServices } from '@/services/habitServices';
+import { toastService } from '@/services/toastService';
 import { HabitCreateInput } from '@/types/event';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context';
 
@@ -65,22 +65,22 @@ export default function CreateHabitScreen() {
 
   const handleCreateHabit = async () => {
     if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a habit title');
+      toastService.error('Please enter a habit title');
       return;
     }
 
     if (selectedFrequency === 'weekly' && selectedDays.length === 0) {
-      Alert.alert('Error', 'Please select at least one day for weekly habits');
+      toastService.error('Please select at least one day for weekly habits');
       return;
     }
 
     if (hasEndDate && endDate && startDate >= endDate) {
-      Alert.alert('Error', 'End date must be after start date');
+      toastService.error('End date must be after start date');
       return;
     }
 
     if (!user?.uid) {
-      Alert.alert('Error', 'User not authenticated');
+      toastService.error('User not authenticated');
       return;
     }
 
@@ -100,15 +100,11 @@ export default function CreateHabitScreen() {
 
       await habitServices.createHabit(user.uid, habitData);
 
-      Alert.alert('Success', 'Habit created successfully', [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]);
+      toastService.success('Habit created successfully');
+      router.back();
     } catch (error) {
       console.error('Error creating habit:', error);
-      Alert.alert('Error', 'Failed to create habit. Please try again.');
+      toastService.error('Failed to create habit. Please try again.');
     } finally {
       setLoading(false);
     }

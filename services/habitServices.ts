@@ -3,15 +3,15 @@ import { Habit, HabitCreateInput, HabitLog } from '@/types/event';
 import { HabitWithStatus } from '@/types/habitAnalytics';
 import { getAuth } from 'firebase/auth';
 import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  updateDoc,
-  where
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    getDoc,
+    getDocs,
+    query,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 
 /**
@@ -45,22 +45,29 @@ export const habitServices = {
    */
   async createHabit(userId: string, habitData: HabitCreateInput): Promise<Habit> {
     try {
-      // Prevent duplicate habits: check for existing ACTIVE habit with same title and category
+      // Prevent duplicate habits: check for existing habit with same title and category
       const dupQ = query(
         collection(db, HABITS_COLLECTION),
         where('userId', '==', userId),
-        where('title', '==', habitData.title.trim()),
-        where('category', '==', habitData.category || 'other'),
-        where('isActive', '==', true)
+        where('category', '==', habitData.category || 'other')
       );
       const dupSnap = await getDocs(dupQ);
-      if (!dupSnap.empty) {
+      
+      // Check if any habit matches this title (case-insensitive)
+      const newTitleLower = habitData.title.trim().toLowerCase();
+      const hasDuplicate = dupSnap.docs.some(doc => {
+        const existingTitle = doc.data().title?.trim().toLowerCase();
+        return existingTitle === newTitleLower;
+      });
+      
+      if (hasDuplicate) {
         throw new Error('A habit with this name and category already exists. Please use a different name or category.');
       }
 
       const docRef = await addDoc(collection(db, HABITS_COLLECTION), {
         userId,
         title: habitData.title.trim(),
+        titleLower: habitData.title.trim().toLowerCase(),
         description: habitData.description || '',
         category: habitData.category || 'other',
         frequency: habitData.frequency,
@@ -103,29 +110,27 @@ export const habitServices = {
   /**
    * Get all habits for a user
    */
-  async getUserHabits(userId: string, activeOnly: boolean = true): Promise<Habit[]> {
+  async getUserHabits(userId: string): Promise<Habit[]> {
     try {
-      let q;
-      if (activeOnly) {
-        q = query(
-          collection(db, HABITS_COLLECTION),
-          where('userId', '==', userId),
-          where('isActive', '==', true),
-          orderBy('createdAt', 'desc')
-        );
-      } else {
-        q = query(
-          collection(db, HABITS_COLLECTION),
-          where('userId', '==', userId),
-          orderBy('createdAt', 'desc')
-        );
-      }
+      // Simple query: only filter by userId to avoid composite index requirement
+      // Sort by createdAt in code instead
+      const q = query(
+        collection(db, HABITS_COLLECTION),
+        where('userId', '==', userId)
+      );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => ({
+      const habits = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       } as Habit));
+
+      // Sort by createdAt in descending order (newest first)
+      return habits.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
     } catch (error) {
       throw new HabitServiceError('Could not fetch your habits. Please check your connection and try again.', error);
     }
@@ -179,6 +184,7 @@ export const habitServices = {
       // Only include fields that are defined and have actually changed
       if (updateData.title !== undefined && updateData.title !== existingData.title) {
         dataToUpdate.title = updateData.title;
+        dataToUpdate.titleLower = updateData.title.trim().toLowerCase();
         hasChanges = true;
       }
       if (updateData.description !== undefined && updateData.description !== existingData.description) {
@@ -254,25 +260,36 @@ export const habitServices = {
     } catch (error) {
       throw new HabitServiceError('Could not change habit status. Please try again.', error);
     }
-  },
-
-  /**
-   * Delete a habit (soft delete - marks as inactive)
+  },  /**
+   * Delete a habit (hard delete - permanently removes habit and its logs)
+   * Points earned from the habit are NOT deducted (they remain as earned history)
    */
   async deleteHabit(habitId: string): Promise<void> {
     try {
+      // Get the habit document to verify it exists and get userId
       const habitRef = doc(db, HABITS_COLLECTION, habitId);
+      const habitSnap = await getDoc(habitRef);
       
-      // Soft delete: Mark as inactive instead of actually deleting
-      // Firebase rules allow write when authenticated user matches userId
-      await updateDoc(habitRef, {
-        isActive: false,
-        deletedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      if (!habitSnap.exists()) {
+        throw new Error('Habit not found');
+      }
       
-      // Note: We keep the logs for data integrity
-      // They won't appear in queries since we filter by isActive: true
+      // Delete all habit logs for this habit first
+      const logsQ = query(
+        collection(db, HABIT_LOGS_COLLECTION),
+        where('habitId', '==', habitId)
+      );
+      const logsSnapshot = await getDocs(logsQ);
+      
+      // Delete each log document
+      for (const logDoc of logsSnapshot.docs) {
+        await deleteDoc(doc(db, HABIT_LOGS_COLLECTION, logDoc.id));
+      }
+      
+      // Then delete the habit document itself
+      await deleteDoc(habitRef);
+      
+      console.log(`Habit ${habitId} and all related logs permanently deleted`);
     } catch (error) {
       console.error('Delete habit service error:', error);
       throw new HabitServiceError('Could not delete habit. Please try again.', error);
@@ -351,15 +368,21 @@ export const habitServices = {
       const q = query(
         collection(db, HABIT_LOGS_COLLECTION),
         where('habitId', '==', habitId),
-        where('userId', '==', userId),
-        orderBy('completedAt', 'desc')
+        where('userId', '==', userId)
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => ({
+      const logs = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       } as HabitLog));
+
+      // Sort by completedAt in descending order (newest first)
+      return logs.sort((a, b) => {
+        const dateA = new Date(a.completedAt).getTime();
+        const dateB = new Date(b.completedAt).getTime();
+        return dateB - dateA;
+      }).slice(0, limit);
     } catch (error) {
       throw new HabitServiceError('Could not fetch habit logs. Please check your connection and try again.', error);
     }
@@ -378,19 +401,28 @@ export const habitServices = {
       const q = query(
         collection(db, HABIT_LOGS_COLLECTION),
         where('habitId', '==', habitId),
-        where('userId', '==', userId),
-        where('completedAt', '>=', startDate.toISOString()),
-        where('completedAt', '<=', endDate.toISOString()),
-        orderBy('completedAt', 'desc')
+        where('userId', '==', userId)
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => ({
+      const logs = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       } as HabitLog));
+
+      // Filter by date range in code and sort
+      const startIso = startDate.toISOString();
+      const endIso = endDate.toISOString();
+      
+      return logs
+        .filter(log => log.completedAt >= startIso && log.completedAt <= endIso)
+        .sort((a, b) => {
+          const dateA = new Date(a.completedAt).getTime();
+          const dateB = new Date(b.completedAt).getTime();
+          return dateB - dateA;
+        });
     } catch (error) {
-      throw new HabitServiceError('Could not fetch habit logs for the selected date range.', error);
+      throw new HabitServiceError('Could not fetch habit logs for date range. Please check your connection and try again.', error);
     }
   },
 

@@ -1,15 +1,16 @@
+import { toastService } from '@/services/toastService';
 import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Dimensions,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const getResponsiveDimensions = () => {
@@ -27,8 +28,6 @@ export default function EditProfile() {
     });
     return () => subscription?.remove();
   }, []);
-
-  const { width, height } = dimensions;
   
   // State for form fields
   const [loading, setLoading] = useState(false);
@@ -41,12 +40,12 @@ export default function EditProfile() {
   const handleSave = async () => {
     try {
       setLoading(true);
-      console.log('Saving profile...');
       // Save logic here
+      toastService.success('Profile updated successfully');
       // After saving, go back
       router.back();
-    } catch (error) {
-      console.error('Error saving profile:', error);
+    } catch {
+      toastService.error('Failed to save profile');
     } finally {
       setLoading(false);
     }

@@ -1,8 +1,9 @@
 import EventCreateModal from '@/components/EventCreateModal';
 import { useAuth } from '@/context/authContext';
+import { toastService } from '@/services/toastService';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context';
 
 type Event = {
@@ -51,16 +52,10 @@ export default function CreateEventScreen() {
 
   useEffect(() => {
     if (successMessage) {
-      Alert.alert('Success', successMessage, [
-        {
-          text: 'OK',
-          onPress: () => {
-            setSuccessMessage('');
-            setModalVisible(false);
-            // Optionally navigate back or refresh the events list
-          },
-        },
-      ]);
+      toastService.success(successMessage);
+      setSuccessMessage('');
+      setModalVisible(false);
+      // Optionally navigate back or refresh the events list
     }
   }, [successMessage]);
 
@@ -69,7 +64,7 @@ export default function CreateEventScreen() {
   };
 
   const handleModalError = (message: string) => {
-    Alert.alert('Error', message);
+    toastService.error(message);
   };
 
   const handleModalDismiss = () => {

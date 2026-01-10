@@ -23,20 +23,66 @@ export const userServices = {
   async getUserPoints(userId: string): Promise<number> {
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
-    if (userSnap.exists() && typeof userSnap.data().points === 'number') {
-      return userSnap.data().points;
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      const points = data.points || 0;
+      
+      // If user document exists but doesn't have points field, initialize it
+      if (data.points === undefined) {
+        await updateDoc(userRef, { points: 0 });
+      }
+      
+      return typeof points === 'number' ? points : 0;
     }
     return 0;
   },
 
   async addUserPoints(userId: string, points: number): Promise<void> {
-    const userRef = doc(db, 'users', userId);
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
-      const currentPoints = userSnap.data().points || 0;
-      await updateDoc(userRef, { points: currentPoints + points, updatedAt: Timestamp.now() });
-    } else {
-      await setDoc(userRef, { points, updatedAt: Timestamp.now() });
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        const currentPoints = userSnap.data().points || 0;
+        await updateDoc(userRef, { 
+          points: currentPoints + points, 
+          updatedAt: Timestamp.now() 
+        });
+      } else {
+        // User document doesn't exist yet, create it with points
+        await setDoc(userRef, { 
+          points,
+          updatedAt: Timestamp.now() 
+        });
+      }
+    } catch (error) {
+      console.error('Error adding user points:', error);
+      throw new Error('Failed to add points. Please try again.');
+    }
+  },
+
+  /**
+   * Initialize or ensure user has points field (migration for existing users)
+   */
+  async ensureUserHasPoints(userId: string): Promise<void> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        // If points field is missing, add it
+        if (data.points === undefined) {
+          await updateDoc(userRef, { points: 0 });
+          console.log(`Initialized points for user ${userId}`);
+        }
+      } else {
+        // Create user document if it doesn't exist
+        await setDoc(userRef, { points: 0, updatedAt: Timestamp.now() });
+        console.log(`Created user document with points for user ${userId}`);
+      }
+    } catch (error) {
+      console.error('Error ensuring user has points:', error);
     }
   },
 
@@ -68,15 +114,34 @@ export const userServices = {
    */
   async deleteUserAccount(userId: string): Promise<void> {
     try {
-      // Delete user document from Firestore
+      const { collection, getDocs, query, where } = await import('firebase/firestore');
+
+      // Delete all habits belonging to user
+      const habitsQ = query(collection(db, 'habits'), where('userId', '==', userId));
+      const habitsSnap = await getDocs(habitsQ);
+      for (const habitDoc of habitsSnap.docs) {
+        await deleteDoc(doc(db, 'habits', habitDoc.id));
+      }
+
+      // Delete all habit logs belonging to user
+      const logsQ = query(collection(db, 'habitLogs'), where('userId', '==', userId));
+      const logsSnap = await getDocs(logsQ);
+      for (const logDoc of logsSnap.docs) {
+        await deleteDoc(doc(db, 'habitLogs', logDoc.id));
+      }
+
+      // Delete all events belonging to user
+      const eventsQ = query(collection(db, 'events'), where('userId', '==', userId));
+      const eventsSnap = await getDocs(eventsQ);
+      for (const eventDoc of eventsSnap.docs) {
+        await deleteDoc(doc(db, 'events', eventDoc.id));
+      }
+
+      // Delete user profile document
       const userRef = doc(db, 'users', userId);
       await deleteDoc(userRef);
 
-      // Delete all events belonging to user
-      // Note: You might want to add a batch delete for events and habits if they're numerous
-      // For now, Firestore rules will prevent access to user's other documents after user is deleted
-      
-      console.log(`User ${userId} data deleted successfully`);
+      console.log(`User ${userId} and all related data deleted successfully`);
     } catch (error) {
       console.error('Error deleting user data:', error);
       throw new Error('Failed to delete user data');

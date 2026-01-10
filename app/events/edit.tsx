@@ -1,8 +1,9 @@
 import EventCreateModal from '@/components/EventCreateModal';
 import { eventServices } from '@/services/eventServices';
+import { toastService } from '@/services/toastService';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context';
 
 type Event = {
@@ -28,7 +29,7 @@ export default function EditEventScreen() {
 
   useEffect(() => {
     if (!id) {
-      Alert.alert('Error', 'Event ID is required');
+      toastService.error('Event ID is required');
       router.back();
       return;
     }
@@ -42,12 +43,11 @@ export default function EditEventScreen() {
           setEvent(eventData as Event);
           setModalVisible(true);
         } else {
-          Alert.alert('Error', 'Event not found');
+          toastService.error('Event not found');
           router.back();
         }
-      } catch (error) {
-        console.error('Error loading event:', error);
-        Alert.alert('Error', 'Failed to load event');
+      } catch {
+        toastService.error('Failed to load event');
         router.back();
       } finally {
         setLoading(false);
@@ -59,15 +59,9 @@ export default function EditEventScreen() {
 
   useEffect(() => {
     if (successMessage) {
-      Alert.alert('Success', successMessage, [
-        {
-          text: 'OK',
-          onPress: () => {
-            setSuccessMessage('');
-            router.back();
-          },
-        },
-      ]);
+      toastService.success(successMessage);
+      setSuccessMessage('');
+      router.back();
     }
   }, [successMessage, router]);
 
@@ -76,7 +70,7 @@ export default function EditEventScreen() {
   };
 
   const handleModalError = (message: string) => {
-    Alert.alert('Error', message);
+    toastService.error(message);
   };
 
   const handleModalDismiss = () => {

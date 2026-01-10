@@ -1,5 +1,6 @@
 import { useAuth } from '@/context/authContext';
 import { eventServices } from '@/services/eventServices';
+import { toastService } from '@/services/toastService';
 import { EventCreateInput } from '@/types/event';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
@@ -180,7 +181,7 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
       if (typeof error?.message === 'string') {
         msg = error.message;
       }
-      if (onError) onError(msg);
+      toastService.error(msg);
     } finally {
       setLoading(false);
     }

@@ -1,18 +1,18 @@
 import { useAuth } from '@/context/authContext';
 import { eventServices } from '@/services/eventServices';
+import { toastService } from '@/services/toastService';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Calendar from 'expo-calendar';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    RefreshControl,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -118,7 +118,7 @@ export default function Schedule() {
       allEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
       setEvents(allEvents);
     } catch (error) {
-      console.error('Error fetching all events:', error);
+      toastService.error('Failed to fetch events');
     }
   }, [getWeekDays, user]);
 
@@ -129,7 +129,7 @@ export default function Schedule() {
       if (status === 'granted') {
         fetchAllEvents();
       } else {
-        Alert.alert('Permission required', 'Calendar permission is needed to display your events.');
+        toastService.warning('Calendar permission is needed to display your events.');
       }
     })();
   }, [fetchAllEvents]);

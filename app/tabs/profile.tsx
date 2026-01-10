@@ -6,6 +6,7 @@ import EditProfile from '@/components/profile/EditProfile';
 import PrivacySecurity from '@/components/profile/PrivacySecurity';
 import SectionCard from '@/components/profile/SectionCard';
 import SettingItem from '@/components/profile/SettingItem';
+import CustomAlert from '@/components/CustomAlert';
 import { userServices } from '@/services/userServices';
 import { Stack, useRouter } from 'expo-router';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
@@ -27,6 +28,8 @@ export default function Profile() {
   const [userData, setUserData] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('profile');
+  const [logoutAlert, setLogoutAlert] = useState(false);
+  const [logoutErrorAlert, setLogoutErrorAlert] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -50,11 +53,14 @@ export default function Profile() {
     try {
       await signOut(auth);
       router.replace('/');
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch {
+      setLogoutErrorAlert(true);
     }
   };
 
+  const confirmLogout = () => {
+    setLogoutAlert(true);
+  };
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -86,7 +92,7 @@ export default function Profile() {
           </View>
           
           {activeTab === 'account' && (
-            <AccountSettings user={user} onLogout={handleLogout} onEditProfile={() => setActiveTab('editProfile')} />
+            <AccountSettings user={user} onLogout={confirmLogout} onAutoLogout={handleLogout} onEditProfile={() => setActiveTab('editProfile')} />
           )}
           
           {activeTab === 'editProfile' && (
@@ -107,6 +113,17 @@ export default function Profile() {
             </ScrollView>
           )}
         </View>
+        <CustomAlert
+          visible={logoutAlert}
+          type="warning"
+          title="Logout?"
+          message="Are you sure you want to logout from your account?"
+          onDismiss={() => setLogoutAlert(false)}
+          buttons={[
+            { text: 'Cancel', style: 'cancel', onPress: () => {} },
+            { text: 'Logout', style: 'destructive', onPress: handleLogout },
+          ]}
+        />
       </>
     );
   }
@@ -160,6 +177,27 @@ export default function Profile() {
           />
         </SectionCard>
       </ScrollView>
+      <CustomAlert
+        visible={logoutAlert}
+        type="warning"
+        title="Logout?"
+        message="Are you sure you want to logout from your account?"
+        onDismiss={() => setLogoutAlert(false)}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => {} },
+          { text: 'Logout', style: 'destructive', onPress: handleLogout },
+        ]}
+      />
+      <CustomAlert
+        visible={logoutErrorAlert}
+        type="error"
+        title="Logout Failed"
+        message="Unable to logout. Please try again."
+        onDismiss={() => setLogoutErrorAlert(false)}
+        buttons={[
+          { text: 'OK', style: 'default', onPress: () => {} },
+        ]}
+      />
     </>
   );
 }

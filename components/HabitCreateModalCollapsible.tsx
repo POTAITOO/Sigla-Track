@@ -1,5 +1,6 @@
 import { useAuth } from '@/context/authContext';
 import { habitServices } from '@/services/habitServices';
+import { toastService } from '@/services/toastService';
 import { HabitCreateInput } from '@/types/event';
 import { HabitWithStatus } from '@/types/habitAnalytics';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -189,7 +190,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
       if (typeof error?.message === 'string' && error.message.includes('already exists')) {
         msg = 'A habit with this name and category already exists.';
       }
-      if (onError) onError(msg);
+      toastService.error(msg);
     } finally {
       setLoading(false);
     }
@@ -217,7 +218,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
 
   return (
     <Portal>
-      <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={styles.modal}>
+      <Modal visible={visible} onDismiss={onDismiss} dismissable={true} contentContainerStyle={styles.modal}>
         <View style={styles.header}>
           <Title style={styles.title}>{habit?.id ? 'Edit Habit' : 'Create Habit'}</Title>
           <Text style={styles.subtitle}>{habit?.id ? 'Update your habit' : 'Build a new habit'}</Text>

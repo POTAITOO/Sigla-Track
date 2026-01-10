@@ -1,5 +1,6 @@
 import { useAuth } from '@/context/authContext';
 import { habitServices } from '@/services/habitServices';
+import { toastService } from '@/services/toastService';
 import { HabitCreateInput } from '@/types/event';
 import { HabitWithStatus } from '@/types/habitAnalytics';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -182,7 +183,7 @@ const HabitCreateModal = ({ visible, onDismiss, onSuccess, onError, habit }: Hab
       if (typeof error?.message === 'string' && error.message.includes('already exists')) {
         msg = 'A habit with this name and category already exists.';
       }
-      if (onError) onError(msg);
+      toastService.error(msg);
     } finally {
       setLoading(false);
     }
