@@ -1,13 +1,14 @@
 // context/authContext.tsx
 import { auth } from '@/firebaseConfig';
+import { toastService } from '@/services/toastService';
 import { userServices } from '@/services/userServices';
 import {
-    AuthError,
-    createUserWithEmailAndPassword,
-    onAuthStateChanged,
-    signInWithEmailAndPassword,
-    signOut,
-    User,
+  AuthError,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  User,
 } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
