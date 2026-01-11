@@ -43,6 +43,8 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [hasEndDate, setHasEndDate] = useState(false);
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+  const [reminderTime, setReminderTime] = useState('');
+  const [showReminderTimePicker, setShowReminderTimePicker] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
@@ -67,6 +69,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
       setEndDate(habit.endDate ? new Date(habit.endDate) : null);
       setHasEndDate(!!habit.endDate);
       setSelectedColor(habit.color || COLORS[0]);
+      setReminderTime(habit.reminderTime || '');
       setOriginalHabit(habit);
       setErrors({});
     } else {
@@ -115,6 +118,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
     setEndDate(null);
     setHasEndDate(false);
     setSelectedColor(COLORS[0]);
+    setReminderTime('');
     setErrors({});
   };
 
@@ -132,6 +136,9 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
     if (hasEndDate && endDate && startDate > endDate) {
       newErrors.endDate = 'End date must be after start date.';
     }
+    if (!reminderTime || !/^\d{2}:\d{2}$/.test(reminderTime)) {
+      newErrors.reminderTime = 'Please set a valid reminder time (HH:MM format).';
+    }
     setErrors(newErrors);
     return Object.values(newErrors).every(error => error === null);
   };
@@ -146,7 +153,8 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
       JSON.stringify(selectedDays) !== JSON.stringify(originalHabit.daysOfWeek || []) ||
       startDate.getTime() !== new Date(originalHabit.startDate).getTime() ||
       (hasEndDate && endDate ? endDate.getTime() : null) !== (originalHabit.endDate ? new Date(originalHabit.endDate).getTime() : null) ||
-      selectedColor !== originalHabit.color
+      selectedColor !== originalHabit.color ||
+      reminderTime !== originalHabit.reminderTime
     );
   };
 
@@ -177,6 +185,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
         startDate,
         endDate: hasEndDate && endDate ? endDate : undefined,
         color: selectedColor,
+        reminderTime: reminderTime,
       };
 
       if (habit?.id) {
@@ -409,6 +418,34 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
                     />
                   ))}
                 </View>
+
+                <Text style={[styles.label, { marginTop: 16 }]}>Reminder Time *</Text>
+                <Button
+                  mode="outlined"
+                  onPress={() => setShowReminderTimePicker(true)}
+                  style={styles.dateButton}
+                  labelStyle={{ fontSize: 14, color: '#6366f1' }}
+                >
+                  🔔 {reminderTime || 'Select reminder time'}
+                </Button>
+                {showReminderTimePicker && (
+                  <DateTimePicker
+                    value={reminderTime ? new Date(`2024-01-01T${reminderTime}:00`) : new Date()}
+                    mode="time"
+                    display="spinner"
+                    onChange={(event, selectedDate) => {
+                      if (event.type === 'set' && selectedDate) {
+                        const hours = String(selectedDate.getHours()).padStart(2, '0');
+                        const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+                        setReminderTime(`${hours}:${minutes}`);
+                        setShowReminderTimePicker(false);
+                      } else if (event.type === 'dismissed') {
+                        setShowReminderTimePicker(false);
+                      }
+                    }}
+                  />
+                )}
+                {errors.reminderTime && <Text style={styles.errorText}>{errors.reminderTime}</Text>}
               </View>
             )}
           </View>

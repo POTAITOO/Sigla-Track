@@ -15,6 +15,11 @@ export const userServices = {
         name: user.name || '',
         bio: user.bio || '',
         points: 0,
+        notificationPreferences: {
+          pushNotificationsEnabled: true,
+          habitRemindersEnabled: true,
+          eventRemindersEnabled: true,
+        },
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
@@ -89,7 +94,18 @@ export const userServices = {
   /**
    * Update user profile information
    */
-  async updateUserProfile(userId: string, updates: { bio?: string; name?: string }): Promise<void> {
+  async updateUserProfile(
+    userId: string,
+    updates: {
+      bio?: string;
+      name?: string;
+      notificationPreferences?: {
+        pushNotificationsEnabled: boolean;
+        habitRemindersEnabled: boolean;
+        eventRemindersEnabled: boolean;
+      };
+    }
+  ): Promise<void> {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       ...updates,

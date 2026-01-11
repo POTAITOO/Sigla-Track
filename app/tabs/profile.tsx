@@ -1,9 +1,9 @@
 import About from '@/components/profile/About';
+import NotificationSettings from '@/components/profile/NotificationSettings';
 import AccountSettings from '@/components/profile/AccountSettings';
 import BackButton from '@/components/profile/BackButton';
 import { COLORS, NAVBAR_HEIGHT, SPACING } from '@/components/profile/constants';
 import EditProfile from '@/components/profile/EditProfile';
-import NotificationSettings from '@/components/profile/NotificationSettings';
 import PrivacySecurity from '@/components/profile/PrivacySecurity';
 import SectionCard from '@/components/profile/SectionCard';
 import SettingItem from '@/components/profile/SettingItem';
@@ -12,17 +12,13 @@ import { userServices } from '@/services/userServices';
 import { Stack, useRouter } from 'expo-router';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../../firebaseConfig.js';
 
-type TabType = 'profile' | 'account' | 'editProfile' | 'notifications' | 'privacy' | 'about';
+type TabType = 'profile' | 'account' | 'editProfile' | 'privacy' | 'notifications' | 'about';
+
+
 
 export default function Profile() {
   const [user, setUser] = useState<User | null>(null);
@@ -100,19 +96,19 @@ export default function Profile() {
             <EditProfile user={user} onClose={() => setActiveTab('account')} />
           )}
           
-          {activeTab === 'notifications' && user && (
-            <NotificationSettings userId={user.uid} />
-          )}
-          
           {activeTab === 'privacy' && (
             <PrivacySecurity />
+          )}
+
+          {activeTab === 'notifications' && (
+            <NotificationSettings />
           )}
           
           {activeTab === 'about' && (
             <About />
           )}
           
-          {activeTab !== 'account' && activeTab !== 'editProfile' && activeTab !== 'notifications' && activeTab !== 'privacy' && activeTab !== 'about' && (
+          {activeTab !== 'account' && activeTab !== 'editProfile' && activeTab !== 'privacy' && activeTab !== 'notifications' && activeTab !== 'about' && (
             <ScrollView style={styles.tabContent} contentContainerStyle={styles.tabContentContainer}>
               <Text style={styles.placeholderText}>{activeTab} Tab Content</Text>
             </ScrollView>

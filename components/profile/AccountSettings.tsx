@@ -1,7 +1,8 @@
-import { userServices } from '@/services/userServices';
 import CustomAlert from '@/components/CustomAlert';
+import { auth } from '@/firebaseConfig';
 import { toastService } from '@/services/toastService';
-import { User, deleteUser } from 'firebase/auth';
+import { userServices } from '@/services/userServices';
+import { User, deleteUser, signOut } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Button from './Button';
@@ -55,23 +56,56 @@ export default function AccountSettings({ user, onLogout, onAutoLogout, onEditPr
       // This requires recent authentication
       await deleteUser(user);
       
+      // Sign out from Firebase Auth as well
+      await signOut(auth).catch(() => {
+        // Continue even if signOut fails, user is already deleted
+      });
+      
       // Show success toast and auto-logout
       toastService.success('Account deleted successfully');
       
       // Auto-logout after a brief delay to show the toast
       setTimeout(() => {
-        onAutoLogout?.() || onLogout();
-      }, 1500);
+        // Always call onAutoLogout to ensure user is logged out
+        if (onAutoLogout) {
+          onAutoLogout();
+        } else {
+          onLogout();
+        }
+      }, 500);
     } catch (error: any) {
       setLoading(false);
+      
+      // Try to sign out even on error since Firestore data was deleted
+      try {
+        await signOut(auth);
+      } catch (e) {
+        console.log('Error during forced logout:', e);
+      }
       
       // Handle specific Firebase Auth errors
       if (error.code === 'auth/requires-recent-login') {
         setErrorMessage('Please re-login and try again. For security, account deletion requires recent authentication.');
+        // Force logout after showing error
+        setTimeout(() => {
+          if (onAutoLogout) {
+            onAutoLogout();
+          } else {
+            onLogout();
+          }
+        }, 2000);
       } else if (error.code === 'auth/user-token-expired') {
         setErrorMessage('Your session expired. Please logout and login again to delete your account.');
       } else {
         setErrorMessage(error.message || 'Failed to delete account');
+        // Try to logout anyway since Firestore data was already deleted
+        setTimeout(() => {
+          if (onAutoLogout) {
+            onAutoLogout();
+          } else {
+            onLogout();
+          }
+        }, 2000);
       }
       
       setErrorAlert(true);

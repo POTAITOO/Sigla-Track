@@ -8,6 +8,7 @@ export interface Event {
   location?: string;
   category?: 'work' | 'personal' | 'meeting' | 'deadline' | 'other';
   color?: string;
+  reminder?: number; // minutes before event
   createdAt: string;
   updatedAt: string;
 }
@@ -24,6 +25,8 @@ export interface Habit {
   startDate: string; // ISO 8601 format
   endDate?: string;
   color?: string;
+  reminderTime?: string; // HH:MM format (e.g., "08:00" for 8:00 AM)
+  notificationId?: string; // Expo notification ID for scheduling
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -45,6 +48,7 @@ export interface EventCreateInput {
   location?: string;
   category?: 'work' | 'personal' | 'meeting' | 'deadline' | 'other';
   color?: string;
+  reminder?: number;
 }
 
 export interface HabitCreateInput {
@@ -57,4 +61,5 @@ export interface HabitCreateInput {
   startDate: Date;
   endDate?: Date;
   color?: string;
+  reminderTime?: string; // HH:MM format
 }

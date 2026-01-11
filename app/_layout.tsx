@@ -1,13 +1,23 @@
 import CustomAlert from '@/components/CustomAlert';
 import EventCreateModal from '@/components/EventCreateModal';
-import { AuthProvider, useAuth } from '@/context/authContext';
+import { AuthProvider } from '@/context/authContext';
 import { EventModalProvider, useEventModal } from '@/context/eventModalContext';
+import * as Notifications from 'expo-notifications';
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { LogBox, View } from 'react-native';
 import { PaperProvider, Text } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 
+
+// Suppress Expo Go push notification warning and calendar permission errors
+LogBox.ignoreLogs([
+  'Android Push notifications',
+  'expo-notifications',
+  /expo-notifications.*Android Push/,
+  'CALENDAR permission is required',
+  'Error fetching device calendar events',
+]);
 export type AlertType = 'success' | 'error' | 'warning' | 'info';
 
 export interface AlertState {
@@ -127,8 +137,33 @@ const toastConfig = {
 
 function RootLayoutContent() {
   const { isVisible, selectedEvent, closeModal } = useEventModal();
-  const { user } = useAuth();
   const [alertState, setAlertState] = useState<AlertState>({ visible: false, type: 'info', title: '', message: '' });
+
+  // Setup notification handler
+  useEffect(() => {
+    // Set notification handler for when notifications arrive
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+
+    // Listen for notifications received
+    const subscription = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('📲 NOTIFICATION RECEIVED:');
+      console.log('Title:', notification.request.content.title);
+      console.log('Body:', notification.request.content.body);
+      console.log('Data:', notification.request.content.data);
+      console.log('Timestamp:', new Date().toLocaleTimeString());
+    });
+
+    // Cleanup subscription on unmount
+    return () => subscription.remove();
+  }, []);
 
   const handleSuccess = (message: string) => {
     setAlertState({

@@ -1,4 +1,6 @@
 import { db } from '@/firebaseConfig';
+import { notificationService } from '@/services/notificationService';
+import { userServices } from '@/services/userServices';
 import { Habit, HabitCreateInput, HabitLog } from '@/types/event';
 import { HabitWithStatus } from '@/types/habitAnalytics';
 import { getAuth } from 'firebase/auth';
@@ -82,6 +84,41 @@ export const habitServices = {
         updatedAt: new Date().toISOString(),
       });
 
+      // Schedule notification if reminder time is set
+      let notificationId: string | null = null;
+      if (habitData.reminderTime) {
+        // Check user's notification preferences
+        const userProfile = await userServices.getUserProfile(userId);
+        const preferences = userProfile?.notificationPreferences || {
+          pushNotificationsEnabled: true,
+          habitRemindersEnabled: true,
+        };
+
+        // Only schedule if user has notifications enabled AND habit reminders enabled
+        if (preferences.pushNotificationsEnabled && preferences.habitRemindersEnabled) {
+          notificationId = await notificationService.scheduleHabitReminder(
+            docRef.id,
+            habitData.title.trim(),
+            habitData.reminderTime
+          );
+
+          // Save notification ID to Firestore
+          if (notificationId) {
+            await updateDoc(doc(db, HABITS_COLLECTION, docRef.id), {
+              notificationId,
+            });
+          }
+        }
+      }
+
+      // Log habit creation
+      console.log(`📝 HABIT CREATED at ${new Date().toLocaleString()}`);
+      console.log(`   Title: ${habitData.title.trim()}`);
+      console.log(`   Category: ${habitData.category || 'other'}`);
+      console.log(`   Frequency: ${habitData.frequency}`);
+      console.log(`   Reminder: ${habitData.reminderTime || 'None'}`);
+      console.log(`   Habit ID: ${docRef.id}`);
+
       return {
         id: docRef.id,
         userId,
@@ -95,6 +132,7 @@ export const habitServices = {
         endDate: habitData.endDate ? habitData.endDate.toISOString() : undefined,
         color: habitData.color || '#2ecc71',
         reminderTime: habitData.reminderTime,
+        notificationId: notificationId || undefined,
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -246,7 +284,46 @@ export const habitServices = {
         dataToUpdate.userId = existingData.userId;
       }
 
+      // Handle notification update if reminder time changed
+      if (updateData.reminderTime && updateData.reminderTime !== existingData.reminderTime) {
+        // Cancel old notification if it exists
+        if (existingData.notificationId) {
+          await notificationService.cancelNotification(existingData.notificationId);
+        }
+
+        // Check user's notification preferences before scheduling
+        const userProfile = await userServices.getUserProfile(existingData.userId);
+        const preferences = userProfile?.notificationPreferences || {
+          pushNotificationsEnabled: true,
+          habitRemindersEnabled: true,
+        };
+
+        // Only schedule if user has notifications enabled AND habit reminders enabled
+        if (preferences.pushNotificationsEnabled && preferences.habitRemindersEnabled) {
+          const newNotificationId = await notificationService.scheduleHabitReminder(
+            habitId,
+            existingData.title,
+            updateData.reminderTime
+          );
+
+          if (newNotificationId) {
+            dataToUpdate.notificationId = newNotificationId;
+          }
+        } else {
+          // Clear notificationId if preferences don't allow notifications
+          dataToUpdate.notificationId = null;
+        }
+      }
+
       await updateDoc(habitRef, dataToUpdate);
+
+      // Log habit update
+      console.log(`✏️ HABIT UPDATED at ${new Date().toLocaleString()}`);
+      console.log(`   Habit ID: ${habitId}`);
+      if (updateData.title) console.log(`   Title: ${updateData.title}`);
+      if (updateData.category) console.log(`   Category: ${updateData.category}`);
+      if (updateData.reminderTime) console.log(`   Reminder: ${updateData.reminderTime}`);
+
       return true; // Return true to indicate update was successful
     } catch (error) {
       throw new HabitServiceError('Could not update habit. Please check your input and try again.', error);
@@ -272,12 +349,18 @@ export const habitServices = {
    */
   async deleteHabit(habitId: string): Promise<void> {
     try {
-      // Get the habit document to verify it exists
+      // Get the habit document to verify it exists and get notificationId
       const habitRef = doc(db, HABITS_COLLECTION, habitId);
       const habitSnap = await getDoc(habitRef);
       
       if (!habitSnap.exists()) {
         throw new Error('Habit not found');
+      }
+
+      // Cancel scheduled notification if it exists
+      const notificationId = habitSnap.data()?.notificationId;
+      if (notificationId) {
+        await notificationService.cancelNotification(notificationId);
       }
       
       // Delete all habit logs for this habit first
@@ -294,8 +377,11 @@ export const habitServices = {
       
       // Then delete the habit document itself
       await deleteDoc(habitRef);
-      
-      console.log(`Habit ${habitId} and all related logs permanently deleted`);
+
+      // Log habit deletion
+      console.log(`🗑️ HABIT DELETED at ${new Date().toLocaleString()}`);
+      console.log(`   Habit ID: ${habitId}`);
+      console.log(`   Deleted logs: ${logsSnapshot.docs.length}`);
     } catch (error) {
       console.error('Delete habit service error:', error);
       throw new HabitServiceError('Could not delete habit. Please try again.', error);
@@ -591,6 +677,60 @@ export const habitServices = {
       return habitsWithStatus.sort((a, b) => (a.completedToday ? 1 : -1) - (b.completedToday ? 1 : -1) || a.title.localeCompare(b.title));
     } catch (error) {
       throw new HabitServiceError('Could not calculate habit analytics.', error);
+    }
+  },
+
+  /**
+   * Cancel all notifications for user's habits
+   */
+  async cancelAllHabitNotifications(userId: string): Promise<void> {
+    try {
+      const q = query(collection(db, HABITS_COLLECTION), where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+
+      for (const habitDoc of querySnapshot.docs) {
+        const habit = habitDoc.data();
+        if (habit.notificationId) {
+          // Cancel the notification
+          await notificationService.cancelNotification(habit.notificationId);
+          // Clear the notificationId from Firestore
+          await updateDoc(doc(db, HABITS_COLLECTION, habitDoc.id), {
+            notificationId: null,
+          });
+        }
+      }
+      console.log(`🔔 Cancelled all habit notifications for user ${userId}`);
+    } catch (error) {
+      console.error('Error cancelling habit notifications:', error);
+    }
+  },
+
+  /**
+   * Reschedule all notifications for user's habits
+   */
+  async rescheduleAllHabitNotifications(userId: string): Promise<void> {
+    try {
+      const q = query(collection(db, HABITS_COLLECTION), where('userId', '==', userId), where('isActive', '==', true));
+      const querySnapshot = await getDocs(q);
+
+      for (const habitDoc of querySnapshot.docs) {
+        const habit = habitDoc.data();
+        if (habit.reminderTime && !habit.notificationId) {
+          const notificationId = await notificationService.scheduleHabitReminder(
+            habitDoc.id,
+            habit.title,
+            habit.reminderTime
+          );
+          if (notificationId) {
+            await updateDoc(doc(db, HABITS_COLLECTION, habitDoc.id), {
+              notificationId,
+            });
+          }
+        }
+      }
+      console.log(`🔔 Rescheduled all habit notifications for user ${userId}`);
+    } catch (error) {
+      console.error('Error rescheduling habit notifications:', error);
     }
   },
 };

@@ -45,29 +45,36 @@ export default function Home() {
     };
   }, []);
 
+
+
   const fetchEvents = useCallback(async () => {
     if (!user?.uid) return;
     try {
       const allEvents = await eventServices.getUserEvents(user.uid);
       const now = new Date();
       
-      let eventsToDisplay = allEvents;
-      
-      // Only filter to today's events when sorting by time
-      if (sortFilter === 'time') {
-        const today = new Date();
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-        eventsToDisplay = allEvents.filter((event: any) => {
-          const eventStart = new Date(event.startDate);
-          const eventEnd = new Date(event.endDate);
-          // Show only tasks that haven't ended yet and are within today
-          return eventStart >= startOfDay && eventStart <= endOfDay && eventEnd > now;
-        });
-      }
+      // Filter to show only current and future events (not ended yet)
+      let eventsToDisplay = allEvents.filter((event: any) => {
+        const eventEnd = new Date(event.endDate);
+        return eventEnd > now;
+      });
       
       // Apply sorting based on selected filter
       if (sortFilter === 'time') {
+        // Filter to show only TODAY's events
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        eventsToDisplay = eventsToDisplay.filter((event: any) => {
+          const eventStart = new Date(event.startDate);
+          const eventEnd = new Date(event.endDate);
+          // Show events that are happening today or currently happening
+          return (eventStart < tomorrow && eventEnd > today);
+        });
+        
+        // Sort by start time
         eventsToDisplay.sort((a: any, b: any) => {
           return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
         });

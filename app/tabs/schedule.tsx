@@ -65,7 +65,7 @@ export default function Schedule() {
   }, [weekStartDate]);
 
   // Fetch both Firestore and device calendar events for the week
-  const fetchAllEvents = useCallback(async () => {
+  const fetchAllEvents = useCallback(async (hasCalendarPermission: boolean = false) => {
     try {
       const weekDays = getWeekDays();
       const startDate = new Date(weekDays[0]);
@@ -73,27 +73,29 @@ export default function Schedule() {
       const endDate = new Date(weekDays[6]);
       endDate.setHours(23, 59, 59, 999);
 
-      // 1. Fetch device calendar events
+      // 1. Fetch device calendar events (only if permission is granted)
       let deviceEvents: CalendarEvent[] = [];
-      try {
-        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-        for (const calendar of calendars) {
-          const calendarEvents = await Calendar.getEventsAsync(
-            [calendar.id],
-            startDate,
-            endDate
-          );
-          const mappedEvents = calendarEvents.map((event: any) => ({
-            id: `device-${event.id}`,
-            title: event.title,
-            startDate: new Date(event.startDate),
-            endDate: new Date(event.endDate),
-            color: calendar.color || '#8B5CF6',
-          }));
-          deviceEvents = [...deviceEvents, ...mappedEvents];
+      if (hasCalendarPermission) {
+        try {
+          const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+          for (const calendar of calendars) {
+            const calendarEvents = await Calendar.getEventsAsync(
+              [calendar.id],
+              startDate,
+              endDate
+            );
+            const mappedEvents = calendarEvents.map((event: any) => ({
+              id: `device-${event.id}`,
+              title: event.title,
+              startDate: new Date(event.startDate),
+              endDate: new Date(event.endDate),
+              color: calendar.color || '#8B5CF6',
+            }));
+            deviceEvents = [...deviceEvents, ...mappedEvents];
+          }
+        } catch (err) {
+          console.error('Error fetching device calendar events:', err);
         }
-      } catch (err) {
-        console.error('Error fetching device calendar events:', err);
       }
 
       // 2. Fetch Firestore events for the user
@@ -117,7 +119,7 @@ export default function Schedule() {
       const allEvents = [...deviceEvents, ...firestoreEvents];
       allEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
       setEvents(allEvents);
-    } catch (error) {
+    } catch {
       toastService.error('Failed to fetch events');
     }
   }, [getWeekDays, user]);
@@ -127,9 +129,10 @@ export default function Schedule() {
     (async () => {
       const { status } = await Calendar.requestCalendarPermissionsAsync();
       if (status === 'granted') {
-        fetchAllEvents();
+        fetchAllEvents(true);
       } else {
         toastService.warning('Calendar permission is needed to display your events.');
+        fetchAllEvents(false); // Fetch only Firestore events
       }
     })();
   }, [fetchAllEvents]);
