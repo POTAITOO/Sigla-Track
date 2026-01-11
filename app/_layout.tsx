@@ -134,7 +134,9 @@ function RootLayoutContent() {
   // Register for push notifications when user logs in
   useEffect(() => {
     if (user?.uid) {
+      // Save to Firestore for Cloud Function later
       expoPushTokenService.registerForPushNotifications(user.uid);
+      expoPushTokenService.setupMessageHandlers();
     }
   }, [user?.uid]);
 
@@ -181,14 +183,17 @@ function RootLayoutContent() {
 }
 
 export default function RootLayout() {
+  // OneSignal is initialized via the onesignal-expo-plugin in app.json
+  // No need to call initialize() - the native plugin handles it during build
+
   return (
     <PaperProvider>
       <AuthProvider>
         <EventModalProvider>
           <RootLayoutContent />
+          <Toast config={toastConfig} />
         </EventModalProvider>
       </AuthProvider>
-      <Toast config={toastConfig} />
     </PaperProvider>
   );
 }

@@ -64,14 +64,14 @@ export default function CustomAlert({
   buttons,
 }: CustomAlertProps) {
   const config = alertConfig[type];
-  const defaultButtons = buttons || [{ text: 'OK', onPress: onDismiss }];
+  const defaultButtons = (buttons !== undefined && buttons.length === 0) ? [] : (buttons || [{ text: 'OK', onPress: onDismiss }]);
 
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onDismiss}
+      onRequestClose={() => onDismiss?.()}
     >
       <View style={styles.overlay}>
         <View style={[styles.alertContainer, { backgroundColor: config.bgColor, borderLeftColor: config.borderColor }]}>
@@ -94,39 +94,41 @@ export default function CustomAlert({
           </Text>
 
           {/* Buttons */}
-          <View style={styles.buttonContainer}>
-            {defaultButtons.map((button, index) => {
-              const isDestructive = button.style === 'destructive';
-              const isCancel = button.style === 'cancel';
+          {defaultButtons.length > 0 && (
+            <View style={styles.buttonContainer}>
+              {defaultButtons.map((button, index) => {
+                const isDestructive = button.style === 'destructive';
+                const isCancel = button.style === 'cancel';
 
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.button,
-                    isDestructive && styles.destructiveButton,
-                    isCancel && styles.cancelButton,
-                    !isDestructive && !isCancel && [styles.primaryButton, { backgroundColor: config.buttonBg }],
-                  ]}
-                  onPress={() => {
-                    button.onPress();
-                    onDismiss();
-                  }}
-                >
-                  <Text
+                return (
+                  <TouchableOpacity
+                    key={index}
                     style={[
-                      styles.buttonText,
-                      isDestructive && styles.destructiveButtonText,
-                      isCancel && styles.cancelButtonText,
-                      !isDestructive && !isCancel && styles.primaryButtonText,
+                      styles.button,
+                      isDestructive && styles.destructiveButton,
+                      isCancel && styles.cancelButton,
+                      !isDestructive && !isCancel && [styles.primaryButton, { backgroundColor: config.buttonBg }],
                     ]}
+                    onPress={() => {
+                      button.onPress();
+                      if (onDismiss) onDismiss();
+                    }}
                   >
-                    {button.text}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        isDestructive && styles.destructiveButtonText,
+                        isCancel && styles.cancelButtonText,
+                        !isDestructive && !isCancel && styles.primaryButtonText,
+                      ]}
+                    >
+                      {button.text}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
         </View>
       </View>
     </Modal>

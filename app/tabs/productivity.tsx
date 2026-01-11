@@ -17,6 +17,7 @@ import AnalyticsCard from "@/components/productivity/AnalyticsCard";
 import EmptyState from "@/components/productivity/EmptyState";
 import HabitListItem from "@/components/productivity/HabitListItem";
 import ProgressRing from "@/components/productivity/ProgressRing";
+import CustomAlert from "@/components/CustomAlert";
 import { useHabitAnalytics } from "@/hooks/useHabitAnalytics";
 import { BADGE_THRESHOLD, MAX_LEVEL, MAX_POINTS, getBadge, getCategoryIcon, getLevel } from "@/utils/productivityUtils";
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -539,22 +540,22 @@ export default function Productivity() {
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <TouchableOpacity
-                      style={styles.editButton}
+                      style={styles.actionButton}
                       onPress={() => {
                         handleEditHabit(habit);
                         setShowAllHabits(false);
                       }}
                     >
-                      <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>Edit</Text>
+                      <Text style={{ fontSize: 18 }}>✏️</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.deleteButton}
+                      style={styles.actionButton}
                       onPress={() => {
                         handleDeleteHabit(habit);
                         setShowAllHabits(false);
                       }}
                     >
-                      <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>Delete</Text>
+                      <Text style={{ fontSize: 18 }}>🗑️</Text>
                     </TouchableOpacity>
                   </View>
                 </Surface>
@@ -562,32 +563,25 @@ export default function Productivity() {
             </ScrollView>
           </Modal>
 
-          <Modal visible={!!deletingHabit} onDismiss={() => !isDeleting && setDeletingHabit(null)} contentContainerStyle={{ backgroundColor: '#fff', margin: 32, borderRadius: 16, padding: 24 }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#ef4444', marginBottom: 12 }}>Delete Habit?</Text>
-            <Text style={{ fontSize: 15, color: '#6b7280', marginBottom: 8 }}>Are you sure you want to delete:</Text>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#18181b', marginBottom: 20 }}>"{deletingHabit?.title}"</Text>
-            <Text style={{ fontSize: 14, color: '#f59e0b', marginBottom: 24 }}>⚠️ This will hide the habit and all its history.</Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
-              <TouchableOpacity 
-                onPress={() => setDeletingHabit(null)} 
-                style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: '#f3f4f6', borderRadius: 10 }}
-                disabled={isDeleting}
-              >
-                <Text style={{ color: '#6b7280', fontWeight: '600', fontSize: 15 }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={confirmDeleteHabit} 
-                style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: '#ef4444', borderRadius: 10, minWidth: 80, alignItems: 'center' }}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>Delete</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </Modal>
+          <CustomAlert
+            visible={!!deletingHabit}
+            type="warning"
+            title="Delete Habit?"
+            message={`Are you sure you want to delete "${deletingHabit?.title}"? This will hide the habit and all its history.`}
+            onDismiss={() => !isDeleting && setDeletingHabit(null)}
+            buttons={[
+              {
+                text: 'Cancel',
+                onPress: () => setDeletingHabit(null),
+                style: 'cancel',
+              },
+              {
+                text: 'Delete',
+                onPress: confirmDeleteHabit,
+                style: 'destructive',
+              },
+            ]}
+          />
         </Portal>
 
         {/* Habit Create/Edit Modal - Collapsible Design */}
@@ -640,17 +634,12 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 12,
   },
-  editButton: {
-    padding: 6,
-    marginRight: 4,
-    backgroundColor: '#fbbf24',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-  },
-  deleteButton: {
-    padding: 6,
-    backgroundColor: '#ef4444',
-    borderRadius: 8,
-    paddingHorizontal: 16,
+  actionButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 12,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

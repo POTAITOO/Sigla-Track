@@ -1,3 +1,4 @@
+import CustomAlert from '@/components/CustomAlert';
 import { useAuth } from '@/context/authContext';
 import { eventServices } from '@/services/eventServices';
 import { toastService } from '@/services/toastService';
@@ -10,6 +11,18 @@ import { Button, Chip, Modal, Portal, Text, TextInput, Title } from 'react-nativ
 
 const CATEGORIES = ['work', 'personal', 'meeting', 'deadline', 'other'] as const;
 const COLORS = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e'];
+const REMINDER_OPTIONS = [
+  { label: '5 min', value: 5 },
+  { label: '15 min', value: 15 },
+  { label: '30 min', value: 30 },
+  { label: '1 hour', value: 60 },
+  { label: '2 hours', value: 120 },
+] as const;
+const DURATION_OPTIONS = [
+  { label: '30 min', minutes: 30 },
+  { label: '1 hour', minutes: 60 },
+  { label: '2 hours', minutes: 120 },
+] as const;
 
 type EventWithId = {
   id: string;
@@ -49,12 +62,15 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
   const [selectedCategory, setSelectedCategory] = useState<typeof CATEGORIES[number]>('personal');
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
   const [reminder, setReminder] = useState('15');
+  const [originalEvent, setOriginalEvent] = useState<EventWithId | null>(null);
 
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
+  const [showDiscardAlert, setShowDiscardAlert] = useState(false);
+  const [showLoadingAlert, setShowLoadingAlert] = useState(false);
 
   const triggerHaptic = () => {
     if (Platform.OS !== 'web') {
@@ -72,10 +88,12 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
       setSelectedCategory(event.category || 'personal');
       setSelectedColor(event.color || COLORS[0]);
       setReminder(event.reminder?.toString() || '15');
+      setOriginalEvent(event);
       setErrors({});
       setExpandedSections({ basic: true, schedule: true, custom: false });
     } else {
       resetForm();
+      setOriginalEvent(null);
     }
   }, [event, visible]);
 
@@ -85,6 +103,13 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
       const newDate = new Date(selectedDate);
       newDate.setHours(startDate.getHours(), startDate.getMinutes(), 0, 0);
       setStartDate(newDate);
+      
+      // Auto-adjust end date if it's now in the past
+      if (endDate < newDate) {
+        const newEndDate = new Date(newDate);
+        newEndDate.setHours(newEndDate.getHours() + 1);
+        setEndDate(newEndDate);
+      }
     }
   };
 
@@ -94,6 +119,13 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
       const newTime = new Date(startDate);
       newTime.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
       setStartDate(newTime);
+      
+      // Auto-adjust end time if it's now in the past
+      if (endDate <= newTime) {
+        const newEndDate = new Date(newTime);
+        newEndDate.setHours(newEndDate.getHours() + 1);
+        setEndDate(newEndDate);
+      }
     }
   };
 
@@ -112,6 +144,33 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
       const newTime = new Date(endDate);
       newTime.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
       setEndDate(newTime);
+    }
+  };
+
+  const hasChanges = () => {
+    if (!originalEvent) return true; // Creating new event, always allow submit
+    
+    return (
+      title !== (originalEvent.title || '') ||
+      description !== (originalEvent.description || '') ||
+      location !== (originalEvent.location || '') ||
+      selectedCategory !== (originalEvent.category || 'personal') ||
+      selectedColor !== (originalEvent.color || COLORS[0]) ||
+      reminder !== (originalEvent.reminder?.toString() || '15') ||
+      startDate.getTime() !== (originalEvent.startDate instanceof Date 
+        ? originalEvent.startDate.getTime() 
+        : new Date(originalEvent.startDate).getTime()) ||
+      endDate.getTime() !== (originalEvent.endDate instanceof Date 
+        ? originalEvent.endDate.getTime() 
+        : new Date(originalEvent.endDate).getTime())
+    );
+  };
+
+  const handleDismiss = () => {
+    if (hasChanges()) {
+      setShowDiscardAlert(true);
+    } else {
+      if (onDismiss) onDismiss();
     }
   };
 
@@ -138,6 +197,9 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
   const validateForm = () => {
     const newErrors: { [key: string]: string | null } = {};
     if (!title.trim()) newErrors.title = 'Please enter an event title.';
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    if (startDate < startOfToday) newErrors.startDate = 'Event must be today or in the future.';
     if (startDate >= endDate) newErrors.endDate = 'End date must be after start date.';
     const reminderInt = parseInt(reminder, 10);
     if (isNaN(reminderInt) || reminderInt < 0) {
@@ -148,13 +210,20 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
   };
 
   const handleCreateEvent = async () => {
-    if (!validateForm()) return;
+    console.log('Submit button clicked, validating form...');
+    if (!validateForm()) {
+      console.log('Validation failed. Errors:', errors);
+      return;
+    }
+    console.log('Validation passed, proceeding with create/update...');
     if (!user?.uid) {
+      console.error('User not authenticated');
       if (onError) onError('User not authenticated.');
       return;
     }
 
     setLoading(true);
+    setShowLoadingAlert(true);
     try {
       const eventData: EventCreateInput = {
         title: title.trim(),
@@ -169,21 +238,27 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
 
       if (event?.id) {
         await eventServices.updateEvent(event.id, eventData);
-        if (onSuccess) onSuccess(`"${eventData.title}" updated successfully!`);
       } else {
         await eventServices.createEvent(user.uid, eventData);
-        if (onSuccess) onSuccess(`"${eventData.title}" created successfully!`);
       }
       resetForm();
-      onDismiss();
+      if (onDismiss) onDismiss();
+      // Call onSuccess after modal closes
+      if (event?.id) {
+        if (onSuccess) onSuccess('Event updated successfully!');
+      } else {
+        if (onSuccess) onSuccess('Event created successfully!');
+      }
     } catch (error: any) {
       let msg = event?.id ? 'Failed to update event.' : 'Failed to create event.';
       if (typeof error?.message === 'string') {
         msg = error.message;
       }
+      if (onError) onError(msg);
       toastService.error(msg);
     } finally {
       setLoading(false);
+      setShowLoadingAlert(false);
     }
   };
 
@@ -211,7 +286,26 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
 
   return (
     <Portal>
-      <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={styles.modal}>
+      <CustomAlert
+        visible={showDiscardAlert}
+        type="warning"
+        title="Discard Changes?"
+        message="You have unsaved changes. Are you sure you want to close?"
+        buttons={[
+          { text: 'Keep Editing', onPress: () => setShowDiscardAlert(false), style: 'cancel' },
+          { text: 'Discard', onPress: () => { setShowDiscardAlert(false); if (onDismiss) onDismiss(); }, style: 'destructive' },
+        ]}
+        onDismiss={() => setShowDiscardAlert(false)}
+      />
+      <CustomAlert
+        visible={showLoadingAlert}
+        type="info"
+        title={event?.id ? 'Updating Event...' : 'Creating Event...'}
+        message="Please wait while we save your event."
+        buttons={[]}
+        onDismiss={() => {}}
+      />
+      <Modal visible={visible} onDismiss={handleDismiss} contentContainerStyle={styles.modal}>
         <View style={styles.header}>
           <Title style={styles.title}>{event?.id ? 'Edit Event' : 'Create Event'}</Title>
           <Text style={styles.subtitle}>{event?.id ? 'Update your event' : 'Plan a new event'}</Text>
@@ -224,13 +318,13 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
             {expandedSections.basic && (
               <View style={styles.sectionContent}>
                 <TextInput
-                  label="Event Title"
+                  label="Event Title *"
                   value={title}
                   onChangeText={(text) => {
                     setTitle(text);
                     if (text.trim()) setErrors(prev => ({ ...prev, title: null }));
                   }}
-                  style={styles.input}
+                  style={[styles.input, errors.title && styles.inputError]}
                   mode="outlined"
                   error={!!errors.title}
                   placeholderTextColor="#9ca3af"
@@ -293,7 +387,7 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
                   📅 {formatDate(startDate)}
                 </Button>
                 {showStartDatePicker && (
-                  <DateTimePicker value={startDate} mode="date" display="default" onChange={handleStartDateChange} />
+                  <DateTimePicker value={startDate} mode="date" display="default" onChange={handleStartDateChange} minimumDate={new Date()} />
                 )}
 
                 <Text style={styles.label}>Start Time</Text>
@@ -306,7 +400,7 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
                   🕐 {formatTime(startDate)}
                 </Button>
                 {showStartTimePicker && (
-                  <DateTimePicker value={startDate} mode="time" display="default" onChange={handleStartTimeChange} />
+                  <DateTimePicker value={startDate} mode="time" display="spinner" onChange={handleStartTimeChange} />
                 )}
 
                 <Text style={styles.label}>End Date</Text>
@@ -332,25 +426,47 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
                   🕐 {formatTime(endDate)}
                 </Button>
                 {showEndTimePicker && (
-                  <DateTimePicker value={endDate} mode="time" display="default" onChange={handleEndTimeChange} />
+                  <DateTimePicker value={endDate} mode="time" display="spinner" onChange={handleEndTimeChange} />
                 )}
                 {errors.endDate && <Text style={styles.errorText}>{errors.endDate}</Text>}
 
-                <Text style={styles.label}>Reminder (minutes before)</Text>
-                <TextInput
-                  label="Minutes"
-                  value={reminder}
-                  onChangeText={(text) => {
-                    setReminder(text);
-                    const num = parseInt(text, 10);
-                    if (!isNaN(num) && num >= 0) setErrors(prev => ({ ...prev, reminder: null }));
-                  }}
-                  style={styles.input}
-                  mode="outlined"
-                  keyboardType="number-pad"
-                  error={!!errors.reminder}
-                  placeholderTextColor="#9ca3af"
-                />
+                <Text style={styles.label}>Quick Duration</Text>
+                <View style={styles.rowWrap}>
+                  {DURATION_OPTIONS.map((option) => (
+                    <Chip
+                      key={option.minutes}
+                      onPress={() => {
+                        triggerHaptic();
+                        const newEndDate = new Date(startDate);
+                        newEndDate.setMinutes(newEndDate.getMinutes() + option.minutes);
+                        setEndDate(newEndDate);
+                      }}
+                      style={[styles.chip]}
+                      mode="outlined"
+                    >
+                      {option.label}
+                    </Chip>
+                  ))}
+                </View>
+
+                <Text style={styles.label}>Reminder *</Text>
+                <View style={styles.rowWrap}>
+                  {REMINDER_OPTIONS.map((option) => (
+                    <Chip
+                      key={option.value}
+                      selected={parseInt(reminder, 10) === option.value}
+                      onPress={() => {
+                        triggerHaptic();
+                        setReminder(option.value.toString());
+                        setErrors(prev => ({ ...prev, reminder: null }));
+                      }}
+                      style={[styles.chip, parseInt(reminder, 10) === option.value && styles.chipSelected]}
+                      mode="outlined"
+                    >
+                      {option.label}
+                    </Chip>
+                  ))}
+                </View>
                 {errors.reminder && <Text style={styles.errorText}>{errors.reminder}</Text>}
               </View>
             )}
@@ -391,16 +507,21 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
           {getSummary() && (
             <Text style={styles.summary}>{getSummary()}</Text>
           )}
-          <Button
-            mode="contained"
-            onPress={handleCreateEvent}
-            loading={loading}
-            disabled={loading}
-            style={styles.submitButton}
-            labelStyle={{ fontSize: 16, fontWeight: 'bold' }}
-          >
-            {event?.id ? '✎ Update Event' : '+ Create Event'}
-          </Button>
+          {(() => {
+            const isDisabled = loading || (event?.id ? !hasChanges() : false);
+            return (
+              <Button
+                mode="contained"
+                onPress={handleCreateEvent}
+                loading={loading}
+                disabled={isDisabled}
+                style={[styles.submitButton, isDisabled && styles.submitButtonDisabled]}
+                labelStyle={{ fontSize: 16, fontWeight: 'bold', color: isDisabled ? '#9ca3af' : '#fff' }}
+              >
+                {event?.id ? '✎ Update Event' : '+ Create Event'}
+              </Button>
+            );
+          })()}
         </View>
       </Modal>
     </Portal>
@@ -486,6 +607,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: '#fff',
   },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
+  },
   rowWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -538,5 +663,8 @@ const styles = StyleSheet.create({
   submitButton: {
     paddingVertical: 8,
     backgroundColor: '#6366f1',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#d1d5db',
   },
 });

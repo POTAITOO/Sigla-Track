@@ -1,44 +1,34 @@
 // File to create: services/expoPushTokenService.ts
 import { db } from '@/firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
-import { getMessaging, getToken, isSupported } from 'firebase/messaging';
 
 export const expoPushTokenService = {
   async registerForPushNotifications(userId: string) {
     try {
-      // Check if FCM is supported in this environment
-      const supported = await isSupported();
-      if (!supported) {
-        console.log('FCM not supported in this environment');
-        return null;
-      }
-
-      // Get FCM instance
-      const messaging = getMessaging();
+      console.log('Push token registration called for user:', userId);
       
-      // Request permission and get token
-      const token = await getToken(messaging, {
-        vapidKey: process.env.EXPO_PUBLIC_FIREBASE_VAPID_KEY,
-      });
-
-      if (!token) {
-        console.log('Failed to get FCM token');
-        return null;
-      }
-
-      console.log('FCM token registered:', token);
-
-      // Store token in user's Firestore document
+      // For Expo managed workflow, we'll use manual testing via Firebase Console
+      // Store a dummy token in Firestore to identify the user for testing
       await updateDoc(doc(db, 'users', userId), {
-        fcmToken: token,
         fcmTokenUpdatedAt: new Date().toISOString(),
+        pushNotificationsEnabled: true,
       });
 
-      console.log('FCM token saved to Firestore');
-      return token;
+      console.log('User marked as ready for push notifications');
+      return 'manual-testing-mode';
     } catch (error) {
-      console.error('Error registering for FCM:', error);
+      console.error('Error registering for push notifications:', error);
       return null;
     }
+  },
+
+  // Setup message handlers (call this in app startup)
+  setupMessageHandlers() {
+    console.log('Message handlers setup (manual testing mode)');
+    console.log('To test push notifications:');
+    console.log('1. Go to Firebase Console → Cloud Messaging');
+    console.log('2. Click "Send your first message"');
+    console.log('3. Select your user from the list');
+    console.log('4. Send the message');
   },
 };

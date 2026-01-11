@@ -11,6 +11,9 @@
       "backgroundColor": "#ffffff"
     },
     "scheme": "siglatrack",
+    "ios": {
+      "bundleIdentifier": "com.malupait.siglatrack"
+    },
     "android": {
       "package": "com.malupait.siglatrack",
       "googleServicesFile": "./google-services.json"
@@ -18,7 +21,13 @@
     "plugins": [
       "expo-router",
       "expo-calendar",
-      "@react-native-firebase/app"
+      "@react-native-firebase/app",
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "production"
+        }
+      ]
     ]
   }
 }
