@@ -11,13 +11,6 @@ import { Button, Chip, Modal, Portal, Text, TextInput, Title } from 'react-nativ
 
 const CATEGORIES = ['work', 'personal', 'meeting', 'deadline', 'other'] as const;
 const COLORS = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e'];
-const REMINDER_OPTIONS = [
-  { label: '5 min', value: 5 },
-  { label: '15 min', value: 15 },
-  { label: '30 min', value: 30 },
-  { label: '1 hour', value: 60 },
-  { label: '2 hours', value: 120 },
-] as const;
 const DURATION_OPTIONS = [
   { label: '30 min', minutes: 30 },
   { label: '1 hour', minutes: 60 },
@@ -33,7 +26,6 @@ type EventWithId = {
   location?: string;
   category: typeof CATEGORIES[number];
   color: string;
-  reminder: number;
 };
 
 type EventCreateModalProps = {
@@ -61,7 +53,6 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
   const [endDate, setEndDate] = useState<Date>(new Date(Date.now() + 3600000));
   const [selectedCategory, setSelectedCategory] = useState<typeof CATEGORIES[number]>('personal');
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
-  const [reminder, setReminder] = useState('15');
   const [originalEvent, setOriginalEvent] = useState<EventWithId | null>(null);
 
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -87,7 +78,6 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
       setEndDate(event.endDate instanceof Date ? event.endDate : new Date(event.endDate));
       setSelectedCategory(event.category || 'personal');
       setSelectedColor(event.color || COLORS[0]);
-      setReminder(event.reminder?.toString() || '15');
       setOriginalEvent(event);
       setErrors({});
       setExpandedSections({ basic: true, schedule: true, custom: false });
@@ -156,7 +146,6 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
       location !== (originalEvent.location || '') ||
       selectedCategory !== (originalEvent.category || 'personal') ||
       selectedColor !== (originalEvent.color || COLORS[0]) ||
-      reminder !== (originalEvent.reminder?.toString() || '15') ||
       startDate.getTime() !== (originalEvent.startDate instanceof Date 
         ? originalEvent.startDate.getTime() 
         : new Date(originalEvent.startDate).getTime()) ||
@@ -190,7 +179,6 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
     setEndDate(new Date(Date.now() + 3600000));
     setSelectedCategory('personal');
     setSelectedColor(COLORS[0]);
-    setReminder('15');
     setErrors({});
   };
 
@@ -201,10 +189,6 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     if (startDate < startOfToday) newErrors.startDate = 'Event must be today or in the future.';
     if (startDate >= endDate) newErrors.endDate = 'End date must be after start date.';
-    const reminderInt = parseInt(reminder, 10);
-    if (isNaN(reminderInt) || reminderInt < 0) {
-      newErrors.reminder = 'Reminder must be a non-negative number.';
-    }
     setErrors(newErrors);
     return Object.values(newErrors).every(error => error === null);
   };
@@ -233,7 +217,6 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
         endDate,
         category: selectedCategory,
         color: selectedColor,
-        reminder: parseInt(reminder, 10),
       };
 
       if (event?.id) {
@@ -449,30 +432,7 @@ const EventCreateModal = ({ visible, onDismiss, onSuccess, onError, event }: Eve
                   ))}
                 </View>
 
-                <Text style={styles.label}>Reminder *</Text>
-                <View style={styles.rowWrap}>
-                  {REMINDER_OPTIONS.map((option) => (
-                    <Chip
-                      key={option.value}
-                      selected={parseInt(reminder, 10) === option.value}
-                      onPress={() => {
-                        triggerHaptic();
-                        setReminder(option.value.toString());
-                        setErrors(prev => ({ ...prev, reminder: null }));
-                      }}
-                      style={[styles.chip, parseInt(reminder, 10) === option.value && styles.chipSelected]}
-                      mode="outlined"
-                    >
-                      {option.label}
-                    </Chip>
-                  ))}
-                </View>
-                {errors.reminder && <Text style={styles.errorText}>{errors.reminder}</Text>}
-              </View>
-            )}
-          </View>
-
-          {/* Customization Section */}
+                {/* Customization Section */}
           <View style={styles.section}>
             <SectionHeader title="🎨 Customization" section="custom" />
             {expandedSections.custom && (
