@@ -16,18 +16,20 @@
     },
     "android": {
       "package": "com.malupait.siglatrack",
-      "googleServicesFile": "./google-services.json"
+      "permissions": [
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ]
     },
     "plugins": [
       "expo-router",
-      "expo-calendar",
-      "@react-native-firebase/app",
-      [
-        "onesignal-expo-plugin",
-        {
-          "mode": "production"
-        }
-      ]
-    ]
+      "expo-calendar"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f9ba817c-8fdd-4d0b-91c5-c6c76fa80372"
+      }
+    }
   }
 }
