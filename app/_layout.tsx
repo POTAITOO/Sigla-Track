@@ -7,7 +7,6 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { PaperProvider, Text } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
-import { expoPushTokenService } from '@/services/expoPushTokenService';
 
 export type AlertType = 'success' | 'error' | 'warning' | 'info';
 
@@ -131,15 +130,6 @@ function RootLayoutContent() {
   const { user } = useAuth();
   const [alertState, setAlertState] = useState<AlertState>({ visible: false, type: 'info', title: '', message: '' });
 
-  // Register for push notifications when user logs in
-  useEffect(() => {
-    if (user?.uid) {
-      // Save to Firestore for Cloud Function later
-      expoPushTokenService.registerForPushNotifications(user.uid);
-      expoPushTokenService.setupMessageHandlers();
-    }
-  }, [user?.uid]);
-
   const handleSuccess = (message: string) => {
     setAlertState({
       visible: true,
@@ -183,9 +173,6 @@ function RootLayoutContent() {
 }
 
 export default function RootLayout() {
-  // OneSignal is initialized via the onesignal-expo-plugin in app.json
-  // No need to call initialize() - the native plugin handles it during build
-
   return (
     <PaperProvider>
       <AuthProvider>

@@ -272,7 +272,7 @@ export const habitServices = {
    */
   async deleteHabit(habitId: string): Promise<void> {
     try {
-      // Get the habit document to verify it exists and get userId
+      // Get the habit document to verify it exists
       const habitRef = doc(db, HABITS_COLLECTION, habitId);
       const habitSnap = await getDoc(habitRef);
       

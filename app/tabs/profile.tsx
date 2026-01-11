@@ -3,6 +3,7 @@ import AccountSettings from '@/components/profile/AccountSettings';
 import BackButton from '@/components/profile/BackButton';
 import { COLORS, NAVBAR_HEIGHT, SPACING } from '@/components/profile/constants';
 import EditProfile from '@/components/profile/EditProfile';
+import NotificationSettings from '@/components/profile/NotificationSettings';
 import PrivacySecurity from '@/components/profile/PrivacySecurity';
 import SectionCard from '@/components/profile/SectionCard';
 import SettingItem from '@/components/profile/SettingItem';
@@ -99,6 +100,10 @@ export default function Profile() {
             <EditProfile user={user} onClose={() => setActiveTab('account')} />
           )}
           
+          {activeTab === 'notifications' && user && (
+            <NotificationSettings userId={user.uid} />
+          )}
+          
           {activeTab === 'privacy' && (
             <PrivacySecurity />
           )}
@@ -107,7 +112,7 @@ export default function Profile() {
             <About />
           )}
           
-          {activeTab !== 'account' && activeTab !== 'editProfile' && activeTab !== 'privacy' && activeTab !== 'about' && (
+          {activeTab !== 'account' && activeTab !== 'editProfile' && activeTab !== 'notifications' && activeTab !== 'privacy' && activeTab !== 'about' && (
             <ScrollView style={styles.tabContent} contentContainerStyle={styles.tabContentContainer}>
               <Text style={styles.placeholderText}>{activeTab} Tab Content</Text>
             </ScrollView>
