@@ -1,8 +1,10 @@
 import { useAuth } from '@/context/authContext';
 import { eventServices } from '@/services/eventServices';
+import EventCreateModal from '@/components/EventCreateModal';
+import CustomAlert from '@/components/CustomAlert';
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Dimensions, Image, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Dimensions, Image, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
@@ -12,19 +14,21 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 const verticalScale = (size: number) => (SCREEN_HEIGHT / 812) * size;
 const moderateScale = (size: number, factor = 0.5) => size + (scale(size) - size) * factor;
-const [filter, setFilter] = useState('today');
-const [dimensions, setDimensions] = useState(Dimensions.get('window'));
-const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-const [selectedDropdownOption, setSelectedDropdownOption] = useState('Icons');
 
 export default function Home() {
-  const router = useRouter();
+  useRouter();
   const { user } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [sortFilter, setSortFilter] = useState('time');
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [deleteConfirmEvent, setDeleteConfirmEvent] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const insets = useSafeAreaInsets();
-  const NAVBAR_HEIGHT = 72;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -41,27 +45,53 @@ export default function Home() {
     };
   }, []);
 
+
+
   const fetchEvents = useCallback(async () => {
     if (!user?.uid) return;
     try {
       const allEvents = await eventServices.getUserEvents(user.uid);
+      const now = new Date();
       
-      if (filter === 'today') {
+      // Filter to show only current and future events (not ended yet)
+      let eventsToDisplay = allEvents.filter((event: any) => {
+        const eventEnd = new Date(event.endDate);
+        return eventEnd > now;
+      });
+      
+      // Apply sorting based on selected filter
+      if (sortFilter === 'time') {
+        // Filter to show only TODAY's events
         const today = new Date();
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-        const todaysEvents = allEvents.filter((event: any) => {
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        eventsToDisplay = eventsToDisplay.filter((event: any) => {
           const eventStart = new Date(event.startDate);
-          return eventStart >= startOfDay && eventStart <= endOfDay;
+          const eventEnd = new Date(event.endDate);
+          // Show events that are happening today or currently happening
+          return (eventStart < tomorrow && eventEnd > today);
         });
-        setEvents(todaysEvents);
-      } else {
-        setEvents(allEvents);
+        
+        // Sort by start time
+        eventsToDisplay.sort((a: any, b: any) => {
+          return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+        });
+      } else if (sortFilter === 'alphabetical') {
+        eventsToDisplay.sort((a: any, b: any) => {
+          return a.title.localeCompare(b.title);
+        });
+      } else if (sortFilter === 'category') {
+        eventsToDisplay.sort((a: any, b: any) => {
+          return (a.category || 'other').localeCompare(b.category || 'other');
+        });
       }
-    } catch (error) {
-      console.error('Failed to fetch events:', error);
+      
+      setEvents(eventsToDisplay);
+    } catch {
     }
-  }, [user, filter]);
+  }, [user, sortFilter]);
 
   useEffect(() => {
     fetchEvents();
@@ -71,6 +101,38 @@ export default function Home() {
     setRefreshing(true);
     fetchEvents().finally(() => setRefreshing(false));
   }, [fetchEvents]);
+
+  const handleEditEvent = (event: any) => {
+    setEditingEvent(event);
+    setShowEventModal(true);
+  };
+
+  const handleDeleteEvent = (event: any) => {
+    setDeleteConfirmEvent(event);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmEvent || !user?.uid) return;
+    
+    try {
+      setIsDeleting(true);
+      await eventServices.deleteEvent(deleteConfirmEvent.id);
+      setDeleteConfirmEvent(null);
+      await fetchEvents();
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      Alert.alert('Error', 'Failed to delete event');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowEventModal(false);
+    setEditingEvent(null);
+    // Refresh events when modal closes (after create/edit)
+    fetchEvents();
+  };
 
   const getDayName = () => {
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -106,46 +168,42 @@ export default function Home() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ paddingBottom: insets.bottom + NAVBAR_HEIGHT }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />
-        }
-      >
+      <View style={{ flex: 1, backgroundColor: "#FFF" }}>
         {/* Gradient Background Circles */}
         <View style={[styles.gradientCircle1, {
           width: scale(300),
           height: scale(300),
-          borderRadius: scale(150),
-          top: -scale(50),
-          right: -scale(50),
+          borderRadius: scale(175),
+          top: verticalScale(60),
+          left: scale(-80),
         }]} />
         <View style={[styles.gradientCircle2, {
-          width: scale(250),
-          height: scale(250),
-          borderRadius: scale(125),
-          bottom: verticalScale(200),
-          left: -scale(50),
+          width: scale(280),
+          height: scale(280),
+          borderRadius: scale(140),
+          top: verticalScale(100),
+          right: scale(-40),
         }]} />
 
-        {/* Header - Reduced spacing */}
+        {/* Header - Fixed at top */}
         <View style={{
           paddingTop: Math.max(insets.top, 0) + verticalScale(8),
           paddingHorizontal: scale(20),
           paddingBottom: verticalScale(6),
           zIndex: 1,
+          backgroundColor: "transparent",
         }}>
           <Text style={{ fontSize: moderateScale(24), fontWeight: 'bold', color: '#222' }}>
             Welcome!
           </Text>
         </View>
 
-        {/* Date Card - Reduced spacing */}
+        {/* Date Card - Fixed at top */}
         <View style={{ 
           paddingHorizontal: scale(20), 
           paddingBottom: verticalScale(12),
-          zIndex: 1 
+          zIndex: 1,
+          backgroundColor: "transparent",
         }}>
           {/* Day Number and Day Name Row */}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: scale(10), marginBottom: verticalScale(6) }}>
@@ -180,7 +238,6 @@ export default function Home() {
                   fontSize: isSmallScreen ? moderateScale(60) : moderateScale(75),
                   fontWeight: "700",
                   color: "#000",
-                  marginHorizontal: -scale(8),
                 }}>
                   :
                 </Text>
@@ -239,19 +296,25 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Tasks Section - Increased space */}
-        <View style={{
-          flex: 1,
-          marginHorizontal: 0,
-          paddingHorizontal: scale(24),
-          paddingTop: verticalScale(24),
-          backgroundColor: "#FFF",
-          borderTopLeftRadius: moderateScale(32),
-          borderTopRightRadius: moderateScale(32),
-          marginTop: verticalScale(6),
-        }}>
+        {/* Tasks Section - Single Scrollable Container */}
+        <ScrollView
+          scrollEnabled={true}
+          contentContainerStyle={{ paddingBottom: verticalScale(20) }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={{
+            paddingHorizontal: scale(24),
+            paddingTop: verticalScale(12),
+            paddingBottom: 0,
+            backgroundColor: "#FFF",
+            borderTopLeftRadius: moderateScale(20),
+            borderTopRightRadius: moderateScale(20),
+          }}>
           {/* Header with Filter Buttons and Dropdown */}
-          <View style={{ marginBottom: verticalScale(20) }}>
+          <View style={{ marginBottom: verticalScale(20), marginTop: verticalScale(12) }}>
             {/* Title and Filter Icon Row */}
             <View style={{ 
               flexDirection: 'row', 
@@ -261,7 +324,9 @@ export default function Home() {
               paddingHorizontal: scale(4),
             }}>
               <Text style={{ fontSize: moderateScale(24), fontWeight: "700", color: "#000" }}>
-                {filter === 'today' ? "Today's tasks" : "All tasks"}
+                {sortFilter === 'time' && "Today's Tasks"}
+                {sortFilter === 'alphabetical' && "Tasks (A-Z)"}
+                {sortFilter === 'category' && "Tasks by Category"}
               </Text>
               
               {/* Filter Icon Button with Dropdown */}
@@ -309,21 +374,25 @@ export default function Home() {
                     borderWidth: 1,
                     borderColor: '#E0E0E0',
                   }}>
-                    {['Icons', 'List', 'Name', 'Grid View'].map((option, index, arr) => (
+                    {[
+                      { label: 'Sort by Time', value: 'time' },
+                      { label: 'Sort Alphabetical (A-Z)', value: 'alphabetical' },
+                      { label: 'Sort by Category', value: 'category' },
+                    ].map((option, index, arr) => (
                       <TouchableOpacity
-                        key={option}
+                        key={option.value}
                         style={{
                           paddingHorizontal: scale(16),
                           paddingVertical: verticalScale(12),
                           borderBottomWidth: index < arr.length - 1 ? 1 : 0,
                           borderBottomColor: '#F0F0F0',
-                          backgroundColor: selectedDropdownOption === option ? '#F8F8F8' : 'transparent',
+                          backgroundColor: sortFilter === option.value ? '#F8F8F8' : 'transparent',
                           flexDirection: 'row',
                           alignItems: 'center',
                           justifyContent: 'space-between',
                         }}
                         onPress={() => {
-                          setSelectedDropdownOption(option);
+                          setSortFilter(option.value);
                           setIsDropdownOpen(false);
                         }}
                         activeOpacity={0.7}
@@ -331,11 +400,11 @@ export default function Home() {
                         <Text style={{
                           fontSize: moderateScale(14),
                           color: '#333',
-                          fontWeight: selectedDropdownOption === option ? '600' : '400',
+                          fontWeight: sortFilter === option.value ? '600' : '400',
                         }}>
-                          {option}
+                          {option.label}
                         </Text>
-                        {selectedDropdownOption === option && (
+                        {sortFilter === option.value && (
                           <Text style={{
                             fontSize: moderateScale(16),
                             color: '#2ecc71',
@@ -350,61 +419,16 @@ export default function Home() {
               </View>
             </View>
 
-            {/* Centered Filter Buttons */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scale(12) }}>
-              <TouchableOpacity
-                style={{
-                  backgroundColor: filter === 'today' ? "#2ecc71" : "#E8E8E8",
-                  paddingHorizontal: scale(24),
-                  paddingVertical: verticalScale(12),
-                  borderRadius: moderateScale(24),
-                  minWidth: scale(100),
-                  alignItems: 'center',
-                }}
-                onPress={() => setFilter('today')}
-                activeOpacity={0.7}
-              >
-                <Text style={{
-                  fontSize: moderateScale(14),
-                  color: filter === 'today' ? "#FFF" : "#666",
-                  fontWeight: "600",
-                }}>
-                  Today
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  backgroundColor: filter === 'all' ? "#2ecc71" : "#E8E8E8",
-                  paddingHorizontal: scale(24),
-                  paddingVertical: verticalScale(12),
-                  borderRadius: moderateScale(24),
-                  minWidth: scale(100),
-                  alignItems: 'center',
-                }}
-                onPress={() => setFilter('all')}
-                activeOpacity={0.7}
-              >
-                <Text style={{
-                  fontSize: moderateScale(14),
-                  color: filter === 'all' ? "#FFF" : "#666",
-                  fontWeight: "600",
-                }}>
-                  All
-                </Text>
-              </TouchableOpacity>
-            </View>
+            {/* Centered Filter Buttons - Removed */}
+            {/* Filter functionality moved to dropdown menu above */}
           </View>
 
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ paddingBottom: insets.bottom + NAVBAR_HEIGHT + verticalScale(20) }}
-            showsVerticalScrollIndicator={false}
-          >
-            {events.length === 0 ? (
-              <Text style={{ color: '#888', textAlign: 'center', marginTop: verticalScale(16), fontSize: moderateScale(16) }}>
-                No tasks {filter === 'today' ? 'for today' : 'available'}.
-              </Text>
-            ) : (
+          {/* Tasks Map */}
+          {events.length === 0 ? (
+            <Text style={{ color: '#888', textAlign: 'center', marginTop: verticalScale(16), fontSize: moderateScale(16) }}>
+              No tasks available.
+            </Text>
+          ) : (
               events.map((event) => {
                 const start = new Date(event.startDate);
                 const end = new Date(event.endDate);
@@ -425,15 +449,65 @@ export default function Home() {
                       marginBottom: verticalScale(16),
                     }}
                   >
-                    <Text style={{ 
-                      fontSize: moderateScale(20), 
-                      fontWeight: "700", 
-                      color: "#000", 
-                      marginBottom: verticalScale(20),
-                      flexShrink: 1,
-                    }}>
-                      {event.title}
-                    </Text>
+                    {/* Card Header with Title and Action Buttons */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: verticalScale(20) }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ 
+                          fontSize: moderateScale(20), 
+                          fontWeight: "700", 
+                          color: "#000", 
+                          flexShrink: 1,
+                        }}>
+                          {event.title}
+                        </Text>
+                        <Text style={{ 
+                          fontSize: moderateScale(12), 
+                          color: "#333", 
+                          fontWeight: "500",
+                          marginTop: verticalScale(4),
+                          textTransform: 'capitalize',
+                        }}>
+                          {event.category || 'other'}
+                        </Text>
+                      </View>
+                      {/* Edit and Delete Buttons */}
+                      <View style={{ flexDirection: 'row', gap: scale(8), marginLeft: scale(12), pointerEvents: 'auto' }}>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                            borderRadius: moderateScale(12),
+                            width: scale(44),
+                            height: scale(44),
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                          onPress={() => {
+                            console.log('Edit button pressed');
+                            handleEditEvent(event);
+                          }}
+                          activeOpacity={0.6}
+                        >
+                          <Text style={{ fontSize: moderateScale(20), color: '#000' }}>✏️</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                            borderRadius: moderateScale(12),
+                            width: scale(44),
+                            height: scale(44),
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                          onPress={() => {
+                            console.log('Delete button pressed');
+                            handleDeleteEvent(event);
+                          }}
+                          activeOpacity={0.6}
+                        >
+                          <Text style={{ fontSize: moderateScale(18), color: '#000' }}>🗑️</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                     <View style={{ 
                       flexDirection: "row", 
                       alignItems: "center", 
@@ -497,9 +571,42 @@ export default function Home() {
                 );
               })
             )}
-          </ScrollView>
-        </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Event Modal for Editing */}
+      <EventCreateModal
+        visible={showEventModal}
+        onDismiss={handleCloseModal}
+        event={editingEvent}
+        onError={(message) => {
+          console.error('Event operation error:', message);
+        }}
+      />
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmEvent && (
+        <CustomAlert
+          visible={!!deleteConfirmEvent}
+          type="warning"
+          title="Delete Event"
+          message={`Are you sure you want to delete "${deleteConfirmEvent.title}"? This action cannot be undone.`}
+          onDismiss={() => setDeleteConfirmEvent(null)}
+          buttons={[
+            {
+              text: 'Cancel',
+              onPress: () => setDeleteConfirmEvent(null),
+              style: 'cancel',
+            },
+            {
+              text: 'Delete',
+              onPress: handleConfirmDelete,
+              style: 'destructive',
+            },
+          ]}
+        />
+      )}
     </>
   );
 } 
@@ -513,13 +620,13 @@ const styles = StyleSheet.create({
   gradientCircle1: {
     position: "absolute",
     backgroundColor: "#E9D5FF",
-    opacity: 0.5,
+    opacity: 0.6,
     zIndex: 0,
   },
   gradientCircle2: {
     position: "absolute",
     backgroundColor: "#D4FC79",
-    opacity: 0.4,
+    opacity: 0.5,
     zIndex: 0,
   },
 });

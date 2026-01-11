@@ -1,8 +1,9 @@
 
+import { useEventModal } from '@/context/eventModalContext';
 import { UserPointsProvider } from '@/context/userPointsContext';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Tabs, router } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView as RNSafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,6 +17,11 @@ const navItems = [
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { openCreateModal, isVisible, isHabitModalVisible } = useEventModal();
+  
+  // Disable navbar if any modal is open
+  const isAnyModalOpen = isVisible || isHabitModalVisible;
+
   return (
     <RNSafeAreaView edges={['bottom']} style={{ backgroundColor: '#232B39' }}>
       <View style={[styles.navBar, { paddingBottom: Math.max(insets.bottom, 8) }]}> 
@@ -27,21 +33,23 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               <TouchableOpacity
                 key="create"
                 accessibilityRole="button"
-                onPress={() => router.push('/events/create')}
+                onPress={openCreateModal}
+                disabled={isAnyModalOpen}
                 style={[
                   styles.createTab,
                   { marginBottom: insets.bottom > 0 ? insets.bottom : 8 },
+                  isAnyModalOpen && styles.createTabDisabled,
                 ]}
-                activeOpacity={0.8}
+                activeOpacity={isAnyModalOpen ? 1 : 0.8}
               >
-                <Ionicons name="add" size={28} color="#fff" />
+                <Ionicons name="add" size={28} color={isAnyModalOpen ? "#999" : "#fff"} />
               </TouchableOpacity>,
               // The actual tab
-              <TabButton key={route.key} route={route} index={index} state={state} descriptors={descriptors} navigation={navigation} />
+              <TabButton key={route.key} route={route} index={index} state={state} descriptors={descriptors} navigation={navigation} isDisabled={isAnyModalOpen} />
             ];
           }
           return (
-            <TabButton key={route.key} route={route} index={index} state={state} descriptors={descriptors} navigation={navigation} />
+            <TabButton key={route.key} route={route} index={index} state={state} descriptors={descriptors} navigation={navigation} isDisabled={isAnyModalOpen} />
           );
         })}
       </View>
@@ -49,15 +57,16 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   );
 }
 
-function TabButton({ route, index, state, descriptors, navigation }: any) {
+function TabButton({ route, index, state, descriptors, navigation, isDisabled }: any) {
   const isActive = state.index === index;
   return (
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityState={isActive ? { selected: true } : {}}
-      onPress={() => navigation.navigate(route.name)}
-      style={[styles.navItem, isActive && styles.navItemActive]}
-      activeOpacity={0.7}
+      onPress={() => !isDisabled && navigation.navigate(route.name)}
+      style={[styles.navItem, isActive && styles.navItemActive, isDisabled && styles.navItemDisabled]}
+      activeOpacity={isDisabled ? 1 : 0.7}
+      disabled={isDisabled}
     >
       <Ionicons
         name={((navItems[index]?.icon ?? 'home') as any)}
@@ -145,6 +154,12 @@ const styles = StyleSheet.create({
   },
   navItemActive: {
     backgroundColor: 'rgba(96, 165, 250, 0.1)',
+  },
+  navItemDisabled: {
+    opacity: 0.5,
+  },
+  createTabDisabled: {
+    opacity: 0.5,
   },
   icon: {
     opacity: 0.5,

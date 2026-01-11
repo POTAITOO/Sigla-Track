@@ -1,10 +1,12 @@
 import { useAuth } from '@/context/authContext';
+import { useUserPoints } from '@/context/userPointsContext';
 import { habitServices } from '@/services/habitServices';
 import { AnalyticsData, HabitWithStatus } from '@/types/habitAnalytics';
 import { useCallback, useState } from 'react';
 
 export const useHabitAnalytics = () => {
   const { user } = useAuth();
+  const { points: userPoints } = useUserPoints();
   const [habits, setHabits] = useState<HabitWithStatus[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalHabits: 0,
@@ -37,7 +39,6 @@ export const useHabitAnalytics = () => {
 
       let completedToday = 0;
       let pendingToday = 0;
-      let totalPoints = 0;
       let currentStreak = 0;
       let longestStreak = 0;
       let totalCompletions = 0;
@@ -52,7 +53,6 @@ export const useHabitAnalytics = () => {
             pendingToday++;
           }
         }
-        totalPoints += habit.points;
         if (habit.streak > currentStreak) {
           currentStreak = habit.streak;
         }
@@ -72,19 +72,21 @@ export const useHabitAnalytics = () => {
         totalHabits: habitsWithStatus.length,
         completedToday,
         pendingToday,
-        totalPoints,
+        totalPoints: userPoints,
         currentStreak,
         longestStreak,
         weeklyCompletion,
         topHabitsByStreak: habitsWithStatus.sort((a, b) => b.longestStreak - a.longestStreak).slice(0, 5),
       });
     } catch (error) {
-      console.error("Error loading habits and analytics:", error);
+      // Only show error toast if it's an actual error, not just empty data
+      console.error('Error loading habits:', error);
+      // Don't show error to user - empty state will handle no habits scenario
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user]);
+  }, [user, userPoints]);
 
   return { habits, analytics, loading, refreshing, loadHabitsAndAnalytics };
 };

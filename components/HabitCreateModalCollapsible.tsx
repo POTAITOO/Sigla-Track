@@ -1,5 +1,7 @@
+import CustomAlert from '@/components/CustomAlert';
 import { useAuth } from '@/context/authContext';
 import { habitServices } from '@/services/habitServices';
+import { toastService } from '@/services/toastService';
 import { HabitCreateInput } from '@/types/event';
 import { HabitWithStatus } from '@/types/habitAnalytics';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -41,11 +43,14 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [hasEndDate, setHasEndDate] = useState(false);
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
-  const [reminder, setReminder] = useState('30');
-
+  const [reminderTime, setReminderTime] = useState('');
+  const [showReminderTimePicker, setShowReminderTimePicker] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
+  const [originalHabit, setOriginalHabit] = useState<HabitWithStatus | null>(null);
+  const [showDiscardAlert, setShowDiscardAlert] = useState(false);
+  const [showLoadingAlert, setShowLoadingAlert] = useState(false);
 
   const triggerHaptic = () => {
     if (Platform.OS !== 'web') {
@@ -64,30 +69,14 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
       setEndDate(habit.endDate ? new Date(habit.endDate) : null);
       setHasEndDate(!!habit.endDate);
       setSelectedColor(habit.color || COLORS[0]);
-      setReminder(habit.reminder?.toString() || '30');
+      setReminderTime(habit.reminderTime || '');
+      setOriginalHabit(habit);
       setErrors({});
     } else {
       resetForm();
+      setOriginalHabit(null);
     }
   }, [habit, visible]);
-
-  const hasChanges = () => {
-    if (!habit) return true; // Creating new habit, always allow submit
-    
-    // Compare current values with original habit
-    return (
-      title !== (habit.title || '') ||
-      description !== (habit.description || '') ||
-      selectedCategory !== (habit.category || null) ||
-      selectedFrequency !== (habit.frequency || null) ||
-      JSON.stringify(selectedDays) !== JSON.stringify(habit.daysOfWeek || []) ||
-      selectedColor !== (habit.color || COLORS[0]) ||
-      reminder !== (habit.reminder?.toString() || '30') ||
-      hasEndDate !== !!habit.endDate ||
-      (hasEndDate && endDate && habit.endDate && 
-        endDate.getTime() !== new Date(habit.endDate).getTime())
-    );
-  };
 
   const handleStartDateChange = (_: any, selectedDate?: Date) => {
     setShowStartPicker(false);
@@ -129,7 +118,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
     setEndDate(null);
     setHasEndDate(false);
     setSelectedColor(COLORS[0]);
-    setReminder('30');
+    setReminderTime('');
     setErrors({});
   };
 
@@ -141,12 +130,40 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
     if (selectedFrequency === 'weekly' && selectedDays.length === 0) {
       newErrors.days = 'Please select at least one day for weekly habits.';
     }
-    const reminderInt = parseInt(reminder, 10);
-    if (isNaN(reminderInt) || reminderInt <= 0) {
-      newErrors.reminder = 'Reminder must be a positive number.';
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Compare only dates, not time
+    if (startDate < now) newErrors.startDate = 'Habit must start today or in the future.';
+    if (hasEndDate && endDate && startDate > endDate) {
+      newErrors.endDate = 'End date must be after start date.';
+    }
+    if (!reminderTime || !/^\d{2}:\d{2}$/.test(reminderTime)) {
+      newErrors.reminderTime = 'Please set a valid reminder time (HH:MM format).';
     }
     setErrors(newErrors);
     return Object.values(newErrors).every(error => error === null);
+  };
+
+  const hasChanges = () => {
+    if (!originalHabit) return true; // Creating new habit, allow dismiss
+    return (
+      title !== originalHabit.title ||
+      description !== originalHabit.description ||
+      selectedCategory !== originalHabit.category ||
+      selectedFrequency !== originalHabit.frequency ||
+      JSON.stringify(selectedDays) !== JSON.stringify(originalHabit.daysOfWeek || []) ||
+      startDate.getTime() !== new Date(originalHabit.startDate).getTime() ||
+      (hasEndDate && endDate ? endDate.getTime() : null) !== (originalHabit.endDate ? new Date(originalHabit.endDate).getTime() : null) ||
+      selectedColor !== originalHabit.color ||
+      reminderTime !== originalHabit.reminderTime
+    );
+  };
+
+  const handleDismiss = () => {
+    if (hasChanges()) {
+      setShowDiscardAlert(true);
+    } else {
+      onDismiss();
+    }
   };
 
   const handleCreateHabit = async () => {
@@ -157,6 +174,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
     }
 
     setLoading(true);
+    setShowLoadingAlert(true);
     try {
       const habitData: HabitCreateInput = {
         title: title.trim(),
@@ -167,20 +185,17 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
         startDate,
         endDate: hasEndDate && endDate ? endDate : undefined,
         color: selectedColor,
-        reminder: parseInt(reminder, 10),
+        reminderTime: reminderTime,
       };
 
       if (habit?.id) {
         const wasUpdated = await habitServices.updateHabit(habit.id, habitData);
         if (!wasUpdated) {
-          if (onSuccess) onSuccess('No changes made to the habit.');
           onDismiss();
           return;
         }
-        if (onSuccess) onSuccess(`"${habitData.title}" updated successfully!`);
       } else {
         await habitServices.createHabit(user.uid, habitData);
-        if (onSuccess) onSuccess(`"${habitData.title}" created successfully!`);
       }
       resetForm();
       onDismiss();
@@ -189,9 +204,10 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
       if (typeof error?.message === 'string' && error.message.includes('already exists')) {
         msg = 'A habit with this name and category already exists.';
       }
-      if (onError) onError(msg);
+      toastService.error(msg);
     } finally {
       setLoading(false);
+      setShowLoadingAlert(false);
     }
   };
 
@@ -217,7 +233,26 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
 
   return (
     <Portal>
-      <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={styles.modal}>
+      <CustomAlert
+        visible={showDiscardAlert}
+        type="warning"
+        title="Discard Changes?"
+        message="You have unsaved changes. Do you want to discard them?"
+        buttons={[
+          { text: 'Keep Editing', onPress: () => setShowDiscardAlert(false), style: 'cancel' },
+          { text: 'Discard', onPress: () => { setShowDiscardAlert(false); onDismiss(); }, style: 'destructive' },
+        ]}
+        onDismiss={() => setShowDiscardAlert(false)}
+      />
+      <CustomAlert
+        visible={showLoadingAlert}
+        type="info"
+        title={habit?.id ? 'Updating Habit...' : 'Creating Habit...'}
+        message="Please wait while we save your habit."
+        buttons={[]}
+        onDismiss={() => {}}
+      />
+      <Modal visible={visible} onDismiss={handleDismiss} dismissable={true} contentContainerStyle={styles.modal}>
         <View style={styles.header}>
           <Title style={styles.title}>{habit?.id ? 'Edit Habit' : 'Create Habit'}</Title>
           <Text style={styles.subtitle}>{habit?.id ? 'Update your habit' : 'Build a new habit'}</Text>
@@ -230,13 +265,13 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
             {expandedSections.basic && (
               <View style={styles.sectionContent}>
                 <TextInput
-                  label="Habit Title"
+                  label="Habit Title *"
                   value={title}
                   onChangeText={(text) => {
                     setTitle(text);
                     if (text.trim()) setErrors(prev => ({ ...prev, title: null }));
                   }}
-                  style={styles.input}
+                  style={[styles.input, errors.title && styles.inputError]}
                   mode="outlined"
                   error={!!errors.title}
                   placeholderTextColor="#9ca3af"
@@ -254,7 +289,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
                   placeholderTextColor="#9ca3af"
                 />
 
-                <Text style={styles.label}>Category</Text>
+                <Text style={styles.label}>Category *</Text>
                 <View style={styles.rowWrap}>
                   {CATEGORIES.map((cat) => (
                     <Chip
@@ -282,7 +317,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
             <SectionHeader title="📅 Schedule" section="schedule" />
             {expandedSections.schedule && (
               <View style={styles.sectionContent}>
-                <Text style={styles.label}>Frequency</Text>
+                <Text style={styles.label}>Frequency *</Text>
                 <View style={styles.rowWrap}>
                   {FREQUENCIES.map((freq) => (
                     <Chip
@@ -304,7 +339,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
 
                 {selectedFrequency === 'weekly' && (
                   <View style={{ marginTop: 16 }}>
-                    <Text style={styles.label}>Select Days</Text>
+                    <Text style={styles.label}>Select Days *</Text>
                     <View style={styles.rowWrap}>
                       {DAYS_OF_WEEK.map((day, idx) => (
                         <Chip
@@ -332,7 +367,7 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
                   📅 {formatDate(startDate)}
                 </Button>
                 {showStartPicker && (
-                  <DateTimePicker value={startDate} mode="date" display="default" onChange={handleStartDateChange} />
+                  <DateTimePicker value={startDate} mode="date" display="default" onChange={handleStartDateChange} minimumDate={new Date()} />
                 )}
 
                 <View style={styles.endDateToggle}>
@@ -384,22 +419,33 @@ const HabitCreateModalCollapsible = ({ visible, onDismiss, onSuccess, onError, h
                   ))}
                 </View>
 
-                <Text style={styles.label}>Reminder</Text>
-                <TextInput
-                  label="Minutes before event"
-                  value={reminder}
-                  onChangeText={(text) => {
-                    setReminder(text);
-                    const num = parseInt(text, 10);
-                    if (!isNaN(num) && num > 0) setErrors(prev => ({ ...prev, reminder: null }));
-                  }}
-                  style={styles.input}
+                <Text style={[styles.label, { marginTop: 16 }]}>Reminder Time *</Text>
+                <Button
                   mode="outlined"
-                  keyboardType="number-pad"
-                  error={!!errors.reminder}
-                  placeholderTextColor="#9ca3af"
-                />
-                {errors.reminder && <Text style={styles.errorText}>{errors.reminder}</Text>}
+                  onPress={() => setShowReminderTimePicker(true)}
+                  style={styles.dateButton}
+                  labelStyle={{ fontSize: 14, color: '#6366f1' }}
+                >
+                  🔔 {reminderTime || 'Select reminder time'}
+                </Button>
+                {showReminderTimePicker && (
+                  <DateTimePicker
+                    value={reminderTime ? new Date(`2024-01-01T${reminderTime}:00`) : new Date()}
+                    mode="time"
+                    display="spinner"
+                    onChange={(event, selectedDate) => {
+                      if (event.type === 'set' && selectedDate) {
+                        const hours = String(selectedDate.getHours()).padStart(2, '0');
+                        const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+                        setReminderTime(`${hours}:${minutes}`);
+                        setShowReminderTimePicker(false);
+                      } else if (event.type === 'dismissed') {
+                        setShowReminderTimePicker(false);
+                      }
+                    }}
+                  />
+                )}
+                {errors.reminderTime && <Text style={styles.errorText}>{errors.reminderTime}</Text>}
               </View>
             )}
           </View>
@@ -571,5 +617,9 @@ const styles = StyleSheet.create({
   },
   submitButtonDisabled: {
     backgroundColor: '#d1d5db',
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
   },
 });

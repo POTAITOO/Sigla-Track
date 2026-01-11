@@ -1,17 +1,19 @@
 import { db } from '@/firebaseConfig';
+import { notificationService } from '@/services/notificationService';
+import { userServices } from '@/services/userServices';
 import { Habit, HabitCreateInput, HabitLog } from '@/types/event';
 import { HabitWithStatus } from '@/types/habitAnalytics';
 import { getAuth } from 'firebase/auth';
 import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  updateDoc,
-  where
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    getDoc,
+    getDocs,
+    query,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 
 /**
@@ -45,34 +47,77 @@ export const habitServices = {
    */
   async createHabit(userId: string, habitData: HabitCreateInput): Promise<Habit> {
     try {
-      // Prevent duplicate habits: check for existing ACTIVE habit with same title and category
+      // Prevent duplicate habits: check for existing habit with same title and category
       const dupQ = query(
         collection(db, HABITS_COLLECTION),
         where('userId', '==', userId),
-        where('title', '==', habitData.title.trim()),
-        where('category', '==', habitData.category || 'other'),
-        where('isActive', '==', true)
+        where('category', '==', habitData.category || 'other')
       );
       const dupSnap = await getDocs(dupQ);
-      if (!dupSnap.empty) {
+      
+      // Check if any habit matches this title (case-insensitive)
+      const newTitleLower = habitData.title.trim().toLowerCase();
+      const hasDuplicate = dupSnap.docs.some(doc => {
+        const existingTitle = doc.data().title?.trim().toLowerCase();
+        return existingTitle === newTitleLower;
+      });
+      
+      if (hasDuplicate) {
         throw new Error('A habit with this name and category already exists. Please use a different name or category.');
       }
 
       const docRef = await addDoc(collection(db, HABITS_COLLECTION), {
         userId,
         title: habitData.title.trim(),
+        titleLower: habitData.title.trim().toLowerCase(),
         description: habitData.description || '',
         category: habitData.category || 'other',
         frequency: habitData.frequency,
         daysOfWeek: habitData.daysOfWeek || [],
+        dayOfMonth: habitData.dayOfMonth || null,
         startDate: habitData.startDate.toISOString(),
         endDate: habitData.endDate ? habitData.endDate.toISOString() : null,
         color: habitData.color || '#2ecc71',
-        reminder: habitData.reminder || 30,
+        reminderTime: habitData.reminderTime,
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
+
+      // Schedule notification if reminder time is set
+      let notificationId: string | null = null;
+      if (habitData.reminderTime) {
+        // Check user's notification preferences
+        const userProfile = await userServices.getUserProfile(userId);
+        const preferences = userProfile?.notificationPreferences || {
+          pushNotificationsEnabled: true,
+          habitRemindersEnabled: true,
+        };
+
+        // Only schedule if user has notifications enabled AND habit reminders enabled
+        if (preferences.pushNotificationsEnabled && preferences.habitRemindersEnabled) {
+          notificationId = await notificationService.scheduleHabitReminder(
+            docRef.id,
+            habitData.title.trim(),
+            habitData.reminderTime
+          );
+
+          // Save notification ID to Firestore
+          if (notificationId) {
+            await updateDoc(doc(db, HABITS_COLLECTION, docRef.id), {
+              notificationId,
+            });
+          }
+        }
+      }
+
+      // Log habit creation
+      console.log(`📝 HABIT CREATED at ${new Date().toLocaleString()}`);
+      console.log(`   Title: ${habitData.title.trim()}`);
+      console.log(`   Category: ${habitData.category || 'other'}`);
+      console.log(`   Frequency: ${habitData.frequency}`);
+      console.log(`   Reminder: ${habitData.reminderTime || 'None'}`);
+      console.log(`   Habit ID: ${docRef.id}`);
 
       return {
         id: docRef.id,
@@ -82,10 +127,12 @@ export const habitServices = {
         category: habitData.category || 'other',
         frequency: habitData.frequency,
         daysOfWeek: habitData.daysOfWeek || [],
+        dayOfMonth: habitData.dayOfMonth || undefined,
         startDate: habitData.startDate.toISOString(),
         endDate: habitData.endDate ? habitData.endDate.toISOString() : undefined,
         color: habitData.color || '#2ecc71',
-        reminder: habitData.reminder || 30,
+        reminderTime: habitData.reminderTime,
+        notificationId: notificationId || undefined,
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -103,29 +150,27 @@ export const habitServices = {
   /**
    * Get all habits for a user
    */
-  async getUserHabits(userId: string, activeOnly: boolean = true): Promise<Habit[]> {
+  async getUserHabits(userId: string): Promise<Habit[]> {
     try {
-      let q;
-      if (activeOnly) {
-        q = query(
-          collection(db, HABITS_COLLECTION),
-          where('userId', '==', userId),
-          where('isActive', '==', true),
-          orderBy('createdAt', 'desc')
-        );
-      } else {
-        q = query(
-          collection(db, HABITS_COLLECTION),
-          where('userId', '==', userId),
-          orderBy('createdAt', 'desc')
-        );
-      }
+      // Simple query: only filter by userId to avoid composite index requirement
+      // Sort by createdAt in code instead
+      const q = query(
+        collection(db, HABITS_COLLECTION),
+        where('userId', '==', userId)
+      );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => ({
+      const habits = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       } as Habit));
+
+      // Sort by createdAt in descending order (newest first)
+      return habits.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
     } catch (error) {
       throw new HabitServiceError('Could not fetch your habits. Please check your connection and try again.', error);
     }
@@ -179,6 +224,7 @@ export const habitServices = {
       // Only include fields that are defined and have actually changed
       if (updateData.title !== undefined && updateData.title !== existingData.title) {
         dataToUpdate.title = updateData.title;
+        dataToUpdate.titleLower = updateData.title.trim().toLowerCase();
         hasChanges = true;
       }
       if (updateData.description !== undefined && updateData.description !== existingData.description) {
@@ -197,12 +243,16 @@ export const habitServices = {
         dataToUpdate.daysOfWeek = updateData.daysOfWeek;
         hasChanges = true;
       }
+      if (updateData.dayOfMonth !== undefined && updateData.dayOfMonth !== existingData.dayOfMonth) {
+        dataToUpdate.dayOfMonth = updateData.dayOfMonth;
+        hasChanges = true;
+      }
       if (updateData.color !== undefined && updateData.color !== existingData.color) {
         dataToUpdate.color = updateData.color;
         hasChanges = true;
       }
-      if (updateData.reminder !== undefined && updateData.reminder !== existingData.reminder) {
-        dataToUpdate.reminder = updateData.reminder;
+      if (updateData.reminderTime !== undefined && updateData.reminderTime !== existingData.reminderTime) {
+        dataToUpdate.reminderTime = updateData.reminderTime;
         hasChanges = true;
       }
 
@@ -234,7 +284,46 @@ export const habitServices = {
         dataToUpdate.userId = existingData.userId;
       }
 
+      // Handle notification update if reminder time changed
+      if (updateData.reminderTime && updateData.reminderTime !== existingData.reminderTime) {
+        // Cancel old notification if it exists
+        if (existingData.notificationId) {
+          await notificationService.cancelNotification(existingData.notificationId);
+        }
+
+        // Check user's notification preferences before scheduling
+        const userProfile = await userServices.getUserProfile(existingData.userId);
+        const preferences = userProfile?.notificationPreferences || {
+          pushNotificationsEnabled: true,
+          habitRemindersEnabled: true,
+        };
+
+        // Only schedule if user has notifications enabled AND habit reminders enabled
+        if (preferences.pushNotificationsEnabled && preferences.habitRemindersEnabled) {
+          const newNotificationId = await notificationService.scheduleHabitReminder(
+            habitId,
+            existingData.title,
+            updateData.reminderTime
+          );
+
+          if (newNotificationId) {
+            dataToUpdate.notificationId = newNotificationId;
+          }
+        } else {
+          // Clear notificationId if preferences don't allow notifications
+          dataToUpdate.notificationId = null;
+        }
+      }
+
       await updateDoc(habitRef, dataToUpdate);
+
+      // Log habit update
+      console.log(`✏️ HABIT UPDATED at ${new Date().toLocaleString()}`);
+      console.log(`   Habit ID: ${habitId}`);
+      if (updateData.title) console.log(`   Title: ${updateData.title}`);
+      if (updateData.category) console.log(`   Category: ${updateData.category}`);
+      if (updateData.reminderTime) console.log(`   Reminder: ${updateData.reminderTime}`);
+
       return true; // Return true to indicate update was successful
     } catch (error) {
       throw new HabitServiceError('Could not update habit. Please check your input and try again.', error);
@@ -254,25 +343,45 @@ export const habitServices = {
     } catch (error) {
       throw new HabitServiceError('Could not change habit status. Please try again.', error);
     }
-  },
-
-  /**
-   * Delete a habit (soft delete - marks as inactive)
+  },  /**
+   * Delete a habit (hard delete - permanently removes habit and its logs)
+   * Points earned from the habit are NOT deducted (they remain as earned history)
    */
   async deleteHabit(habitId: string): Promise<void> {
     try {
+      // Get the habit document to verify it exists and get notificationId
       const habitRef = doc(db, HABITS_COLLECTION, habitId);
+      const habitSnap = await getDoc(habitRef);
       
-      // Soft delete: Mark as inactive instead of actually deleting
-      // Firebase rules allow write when authenticated user matches userId
-      await updateDoc(habitRef, {
-        isActive: false,
-        deletedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      if (!habitSnap.exists()) {
+        throw new Error('Habit not found');
+      }
+
+      // Cancel scheduled notification if it exists
+      const notificationId = habitSnap.data()?.notificationId;
+      if (notificationId) {
+        await notificationService.cancelNotification(notificationId);
+      }
       
-      // Note: We keep the logs for data integrity
-      // They won't appear in queries since we filter by isActive: true
+      // Delete all habit logs for this habit first
+      const logsQ = query(
+        collection(db, HABIT_LOGS_COLLECTION),
+        where('habitId', '==', habitId)
+      );
+      const logsSnapshot = await getDocs(logsQ);
+      
+      // Delete each log document
+      for (const logDoc of logsSnapshot.docs) {
+        await deleteDoc(doc(db, HABIT_LOGS_COLLECTION, logDoc.id));
+      }
+      
+      // Then delete the habit document itself
+      await deleteDoc(habitRef);
+
+      // Log habit deletion
+      console.log(`🗑️ HABIT DELETED at ${new Date().toLocaleString()}`);
+      console.log(`   Habit ID: ${habitId}`);
+      console.log(`   Deleted logs: ${logsSnapshot.docs.length}`);
     } catch (error) {
       console.error('Delete habit service error:', error);
       throw new HabitServiceError('Could not delete habit. Please try again.', error);
@@ -351,15 +460,21 @@ export const habitServices = {
       const q = query(
         collection(db, HABIT_LOGS_COLLECTION),
         where('habitId', '==', habitId),
-        where('userId', '==', userId),
-        orderBy('completedAt', 'desc')
+        where('userId', '==', userId)
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => ({
+      const logs = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       } as HabitLog));
+
+      // Sort by completedAt in descending order (newest first)
+      return logs.sort((a, b) => {
+        const dateA = new Date(a.completedAt).getTime();
+        const dateB = new Date(b.completedAt).getTime();
+        return dateB - dateA;
+      }).slice(0, limit);
     } catch (error) {
       throw new HabitServiceError('Could not fetch habit logs. Please check your connection and try again.', error);
     }
@@ -378,19 +493,28 @@ export const habitServices = {
       const q = query(
         collection(db, HABIT_LOGS_COLLECTION),
         where('habitId', '==', habitId),
-        where('userId', '==', userId),
-        where('completedAt', '>=', startDate.toISOString()),
-        where('completedAt', '<=', endDate.toISOString()),
-        orderBy('completedAt', 'desc')
+        where('userId', '==', userId)
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => ({
+      const logs = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       } as HabitLog));
+
+      // Filter by date range in code and sort
+      const startIso = startDate.toISOString();
+      const endIso = endDate.toISOString();
+      
+      return logs
+        .filter(log => log.completedAt >= startIso && log.completedAt <= endIso)
+        .sort((a, b) => {
+          const dateA = new Date(a.completedAt).getTime();
+          const dateB = new Date(b.completedAt).getTime();
+          return dateB - dateA;
+        });
     } catch (error) {
-      throw new HabitServiceError('Could not fetch habit logs for the selected date range.', error);
+      throw new HabitServiceError('Could not fetch habit logs for date range. Please check your connection and try again.', error);
     }
   },
 
@@ -553,6 +677,60 @@ export const habitServices = {
       return habitsWithStatus.sort((a, b) => (a.completedToday ? 1 : -1) - (b.completedToday ? 1 : -1) || a.title.localeCompare(b.title));
     } catch (error) {
       throw new HabitServiceError('Could not calculate habit analytics.', error);
+    }
+  },
+
+  /**
+   * Cancel all notifications for user's habits
+   */
+  async cancelAllHabitNotifications(userId: string): Promise<void> {
+    try {
+      const q = query(collection(db, HABITS_COLLECTION), where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+
+      for (const habitDoc of querySnapshot.docs) {
+        const habit = habitDoc.data();
+        if (habit.notificationId) {
+          // Cancel the notification
+          await notificationService.cancelNotification(habit.notificationId);
+          // Clear the notificationId from Firestore
+          await updateDoc(doc(db, HABITS_COLLECTION, habitDoc.id), {
+            notificationId: null,
+          });
+        }
+      }
+      console.log(`🔔 Cancelled all habit notifications for user ${userId}`);
+    } catch (error) {
+      console.error('Error cancelling habit notifications:', error);
+    }
+  },
+
+  /**
+   * Reschedule all notifications for user's habits
+   */
+  async rescheduleAllHabitNotifications(userId: string): Promise<void> {
+    try {
+      const q = query(collection(db, HABITS_COLLECTION), where('userId', '==', userId), where('isActive', '==', true));
+      const querySnapshot = await getDocs(q);
+
+      for (const habitDoc of querySnapshot.docs) {
+        const habit = habitDoc.data();
+        if (habit.reminderTime && !habit.notificationId) {
+          const notificationId = await notificationService.scheduleHabitReminder(
+            habitDoc.id,
+            habit.title,
+            habit.reminderTime
+          );
+          if (notificationId) {
+            await updateDoc(doc(db, HABITS_COLLECTION, habitDoc.id), {
+              notificationId,
+            });
+          }
+        }
+      }
+      console.log(`🔔 Rescheduled all habit notifications for user ${userId}`);
+    } catch (error) {
+      console.error('Error rescheduling habit notifications:', error);
     }
   },
 };

@@ -1,14 +1,15 @@
 // context/authContext.tsx
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  User,
-  AuthError,
-} from 'firebase/auth';
 import { auth } from '@/firebaseConfig';
+import { userServices } from '@/services/userServices';
+import {
+    AuthError,
+    createUserWithEmailAndPassword,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    signOut,
+    User,
+} from 'firebase/auth';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface AuthContextType {
   user: User | null;
@@ -39,6 +40,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(firebaseUser);
       setLoading(false);
       setError(null);
+
+      // Run migration for current user only
+      if (firebaseUser) {
+        userServices.migrateUsersSchema(firebaseUser.uid).catch((err) => {
+          toastService.error('Failed to sync profile data');
+          // Don't block app - migration errors are not critical
+        });
+      }
     });
     return () => unsubscribe();
   }, []);

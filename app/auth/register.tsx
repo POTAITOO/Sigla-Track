@@ -74,6 +74,8 @@ export default function Register() {
         email: cred.user.email || trimmedEmail,
         name,
       });
+      
+      // Auto-login: redirect to home
       router.replace("/tabs/home");
     } catch (err) {
       let errorCode = "unknown";

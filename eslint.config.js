@@ -7,4 +7,10 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    rules: {
+      'no-unescaped-entities': 'off', // Allow unescaped quotes in JSX
+      'jsx-a11y/quotes': 'off', // Disable JSX quote escaping requirement
+    },
+  },
 ]);

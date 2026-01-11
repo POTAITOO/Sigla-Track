@@ -24,6 +24,6 @@ export const getCategoryIcon = (category?: string) => {
     case 'fitness': return { name: 'dumbbell', color: '#f97316' }; // Orange dumbbell
     case 'learning': return { name: 'book-open', color: '#3b82f6' }; // Blue book
     case 'productivity': return { name: 'bolt', color: '#f59e0b' }; // Yellow bolt
-    default: return { name: 'sparkles', color: '#a855f7' }; // Purple sparkles
+    default: return { name: 'star', color: '#a855f7' }; // Purple star
   }
 };

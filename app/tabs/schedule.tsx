@@ -1,18 +1,18 @@
 import { useAuth } from '@/context/authContext';
 import { eventServices } from '@/services/eventServices';
+import { toastService } from '@/services/toastService';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Calendar from 'expo-calendar';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    RefreshControl,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -65,7 +65,7 @@ export default function Schedule() {
   }, [weekStartDate]);
 
   // Fetch both Firestore and device calendar events for the week
-  const fetchAllEvents = useCallback(async () => {
+  const fetchAllEvents = useCallback(async (hasCalendarPermission: boolean = false) => {
     try {
       const weekDays = getWeekDays();
       const startDate = new Date(weekDays[0]);
@@ -73,27 +73,29 @@ export default function Schedule() {
       const endDate = new Date(weekDays[6]);
       endDate.setHours(23, 59, 59, 999);
 
-      // 1. Fetch device calendar events
+      // 1. Fetch device calendar events (only if permission is granted)
       let deviceEvents: CalendarEvent[] = [];
-      try {
-        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-        for (const calendar of calendars) {
-          const calendarEvents = await Calendar.getEventsAsync(
-            [calendar.id],
-            startDate,
-            endDate
-          );
-          const mappedEvents = calendarEvents.map((event: any) => ({
-            id: `device-${event.id}`,
-            title: event.title,
-            startDate: new Date(event.startDate),
-            endDate: new Date(event.endDate),
-            color: calendar.color || '#8B5CF6',
-          }));
-          deviceEvents = [...deviceEvents, ...mappedEvents];
+      if (hasCalendarPermission) {
+        try {
+          const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+          for (const calendar of calendars) {
+            const calendarEvents = await Calendar.getEventsAsync(
+              [calendar.id],
+              startDate,
+              endDate
+            );
+            const mappedEvents = calendarEvents.map((event: any) => ({
+              id: `device-${event.id}`,
+              title: event.title,
+              startDate: new Date(event.startDate),
+              endDate: new Date(event.endDate),
+              color: calendar.color || '#8B5CF6',
+            }));
+            deviceEvents = [...deviceEvents, ...mappedEvents];
+          }
+        } catch (err) {
+          console.error('Error fetching device calendar events:', err);
         }
-      } catch (err) {
-        console.error('Error fetching device calendar events:', err);
       }
 
       // 2. Fetch Firestore events for the user
@@ -117,8 +119,8 @@ export default function Schedule() {
       const allEvents = [...deviceEvents, ...firestoreEvents];
       allEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
       setEvents(allEvents);
-    } catch (error) {
-      console.error('Error fetching all events:', error);
+    } catch {
+      toastService.error('Failed to fetch events');
     }
   }, [getWeekDays, user]);
 
@@ -127,9 +129,10 @@ export default function Schedule() {
     (async () => {
       const { status } = await Calendar.requestCalendarPermissionsAsync();
       if (status === 'granted') {
-        fetchAllEvents();
+        fetchAllEvents(true);
       } else {
-        Alert.alert('Permission required', 'Calendar permission is needed to display your events.');
+        toastService.warning('Calendar permission is needed to display your events.');
+        fetchAllEvents(false); // Fetch only Firestore events
       }
     })();
   }, [fetchAllEvents]);
@@ -169,6 +172,38 @@ export default function Schedule() {
       const eventHour = event.startDate.getHours();
       return eventHour === hour;
     });
+  };
+
+  // Check if two events overlap in time
+  const eventsOverlap = (event1: CalendarEvent, event2: CalendarEvent) => {
+    return event1.startDate < event2.endDate && event1.endDate > event2.startDate;
+  };
+
+  // Get overlapping groups for events in a time slot
+  const getOverlappingGroups = (slotEvents: CalendarEvent[]) => {
+    if (slotEvents.length === 0) return [];
+    
+    const groups: CalendarEvent[][] = [];
+    const assigned = new Set<string>();
+
+    for (const event of slotEvents) {
+      if (assigned.has(event.id)) continue;
+
+      const group = [event];
+      assigned.add(event.id);
+
+      // Find all events that overlap with this one
+      for (const otherEvent of slotEvents) {
+        if (!assigned.has(otherEvent.id) && eventsOverlap(event, otherEvent)) {
+          group.push(otherEvent);
+          assigned.add(otherEvent.id);
+        }
+      }
+
+      groups.push(group);
+    }
+
+    return groups;
   };
 
   const formatTime = (date: Date) => {
@@ -401,6 +436,13 @@ export default function Schedule() {
                 {/* Time Label */}
                 <View style={styles.timeColumn}>
                   <Text style={styles.timeLabel}>{slot.label}</Text>
+                  {slotEvents.length > 3 && (
+                    <View style={styles.overflowBadge}>
+                      <Text style={styles.overflowText}>
+                        +{slotEvents.length - 3}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Events or Empty Space */}
@@ -411,36 +453,59 @@ export default function Schedule() {
                   ]}
                 >
                   {slotEvents.length > 0 ? (
-                    slotEvents.map((event) => {
-                      const startTime = formatTime(event.startDate);
-                      const endTime = formatTime(event.endDate);
+                    <View>
+                      {getOverlappingGroups(slotEvents).map((group, groupIndex) => {
+                        const MAX_VISIBLE_EVENTS = 3;
+                        const visibleEvents = group.slice(0, MAX_VISIBLE_EVENTS);
 
-                      return (
-                        <View
-                          key={event.id}
-                          style={[
-                            styles.eventCard,
-                            { backgroundColor: event.color },
-                          ]}
-                        >
+                        return (
                           <View
+                            key={`group-${groupIndex}`}
                             style={[
-                              styles.eventBorder,
-                              { backgroundColor: event.color },
+                              styles.eventsGroup,
+                              { flexDirection: group.length > 1 ? 'row' : 'column' },
                             ]}
-                          />
+                          >
+                            {visibleEvents.map((event, eventIndex) => {
+                              const startTime = formatTime(event.startDate);
+                              const endTime = formatTime(event.endDate);
+                              const displaySize = group.length > 1 ? visibleEvents.length : 1;
+                              const eventWidth = displaySize > 1 ? 100 / displaySize : 100;
 
-                          <View style={styles.eventContent}>
-                            <Text style={styles.eventTitle} numberOfLines={2}>
-                              {event.title}
-                            </Text>
-                            <Text style={styles.eventTime}>
-                              {startTime} - {endTime}
-                            </Text>
+                              return (
+                                <View
+                                  key={event.id}
+                                  style={[
+                                    styles.eventCard,
+                                    {
+                                      backgroundColor: event.color,
+                                      width: displaySize > 1 ? `${eventWidth}%` : '100%',
+                                      marginRight: eventIndex < displaySize - 1 ? 4 : 0,
+                                    },
+                                  ]}
+                                >
+                                  <View
+                                    style={[
+                                      styles.eventBorder,
+                                      { backgroundColor: event.color },
+                                    ]}
+                                  />
+
+                                  <View style={styles.eventContent}>
+                                    <Text style={styles.eventTitle} numberOfLines={2}>
+                                      {event.title}
+                                    </Text>
+                                    <Text style={styles.eventTime}>
+                                      {startTime} - {endTime}
+                                    </Text>
+                                  </View>
+                                </View>
+                              );
+                            })}
                           </View>
-                        </View>
-                      );
-                    })
+                        );
+                      })}
+                    </View>
                   ) : (
                     <View style={styles.emptySlot} />
                   )}
@@ -647,11 +712,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
+  eventsGroup: {
+    marginBottom: 8,
+    alignItems: 'stretch',
+  },
   eventCard: {
     flexDirection: 'row',
     borderRadius: 8,
     overflow: 'hidden',
-    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
@@ -678,6 +746,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     color: '#6B7280',
+  },
+  overflowBadge: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+  },
+  overflowText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   emptySlot: {
     height: 30,

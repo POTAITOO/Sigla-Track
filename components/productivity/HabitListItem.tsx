@@ -22,7 +22,9 @@ const HabitListItem = ({ habit, onComplete, completingHabitId }: HabitListItemPr
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#18181b' }}>{habit.title}</Text>
-          <Text style={{ fontSize: 12, color: '#6b7280' }}>{habit.frequency} • {habit.streak > 0 ? `${habit.streak}d streak` : 'No streak'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>{habit.frequency} • {habit.streak > 0 ? `${habit.streak}d streak` : 'No streak'}</Text>
+          </View>
         </View>
       </View>
       <TouchableOpacity
