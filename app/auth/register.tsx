@@ -29,10 +29,20 @@ export default function Register() {
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   const router = useRouter();
 
+  // Helper to validate full name (only letters and spaces)
+  function isValidFullName(name: string) {
+    return /^[A-Za-z\s]+$/.test(name.trim());
+  }
+
   const handleRegister = async () => {
     const trimmedEmail = email.trim();
     if (!name || !trimmedEmail || !password || !confirmPassword) {
       setError("Please fill in all fields");
+      return;
+    }
+
+    if (!isValidFullName(name)) {
+      setError("Full name must contain only letters and spaces.");
       return;
     }
 
